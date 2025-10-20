@@ -2,30 +2,32 @@ import { create } from 'zustand'
 
 export type BackgroundMode = 'solid' | 'gradient' | 'amoled'
 export type ClockFormat = '24h' | '12h'
+export type Orientation = 'portrait' | 'landscape' | 'auto';
 
 export interface ClockSettings {
   // Background
-  backgroundMode: BackgroundMode
-  solidColor: string
-  gradientStart: string
-  gradientEnd: string
-  animatedGradient: boolean
+  backgroundMode: BackgroundMode;
+  solidColor: string;
+  gradientStart: string;
+  gradientEnd: string;
+  animatedGradient: boolean;
 
   // Clock appearance
-  clockColor: string
-  fontFamily: string
-  customFontFamily: string
+  clockColor: string;
+  fontFamily: string;
+  customFontFamily: string;
 
   // Padding (rem values)
-  paddingX: number
-  paddingY: number
+  paddingX: number;
+  paddingY: number;
 
   // Display options
-  showSeconds: boolean
-  clockFormat: ClockFormat
+  showSeconds: boolean;
+  clockFormat: ClockFormat;
+  orientation: Orientation;
 
   // AMOLED Saver
-  enableAMOLEDSaver: boolean
+  enableAMOLEDSaver: boolean;
 }
 
 const DEFAULT_SETTINGS: ClockSettings = {
@@ -41,8 +43,9 @@ const DEFAULT_SETTINGS: ClockSettings = {
   paddingY: 1,
   showSeconds: false,
   clockFormat: '24h',
+  orientation: 'auto',
   enableAMOLEDSaver: false,
-}
+};
 
 interface SettingsStore {
   settings: ClockSettings

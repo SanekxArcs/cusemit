@@ -1,7 +1,7 @@
-# 🎉 Digital Clock v1.1.0 - Complete Feature Overview
+# 🎉 Digital Clock v1.2.1 - Complete Feature Overview
 
 **Status**: ✅ Production Ready  
-**Version**: 1.1.0  
+**Version**: 1.2.1  
 **Last Updated**: October 20, 2025
 
 ---
@@ -10,21 +10,109 @@
 
 Your Digital Clock is now a fully-featured, installable Progressive Web App with advanced customization including:
 
+- **Animated Numbers** - Smooth digit transitions like NumberFlow
+- **Orientation Control** - Lock portrait/landscape or auto-rotate
 - **242 Colors** via Tailwind palette picker
 - **PWA Installation** on any device (Android, iOS, Windows, macOS)
-- **Offline Support** with Service Worker caching
+- **Offline Support** with Service Worker caching (stale-while-revalidate)
 - **19 Professional Fonts** with search
 - **Responsive Typography** that scales to any screen
 - **AMOLED Optimization** with drift mitigation
 - **Settings Persistence** across devices
 
-**Bundle Size**: 323.88 KB JS (104.10 KB gzip)  
+**Bundle Size**: 325.15 KB JS (104.41 KB gzip)  
 **Performance**: Instant load, smooth 60fps animations  
 **Accessibility**: WCAG AA compliant, keyboard navigation, motion preferences
 
 ---
 
-## 🎨 NEW: Color Picker System
+## ✨ NEW: Animated Number Transitions
+
+### What's New
+
+Each digit now animates smoothly when it changes:
+
+```
+Seconds changing: 12:34:59 → 12:35:00
+
+Visual effect:
+- Digit 4 slides up to 5 ✨
+- Digit 9 slides up to 0 ✨
+- Digit 9 slides up to 0 ✨
+
+All animations smooth and synchronized!
+```
+
+### Animation Details
+
+- **Duration**: 0.4 seconds
+- **Style**: Vertical slide (bottom to top)
+- **Easing**: Smooth easeOut curve
+- **Motion Pref**: Respects prefers-reduced-motion ✅
+- **Performance**: 60 FPS, no jank
+
+### Where Used
+
+- All time digits animate on change
+- Separators (`:`) stay static
+- Works with all formats (24h, 12h, with/without seconds)
+
+### Component
+
+New `AnimatedNumber` component wraps each digit for individual animation control.
+
+---
+
+## 📱 Screen Orientation Control (NEW v1.2.1!)
+
+### What's New
+
+Lock your clock to a specific orientation or let it follow device rotation:
+
+**Settings → Display → Orientation**
+
+```
+Options:
+• Auto (follow device)      ← Default - rotates with device
+• Portrait (portrait-primary) ← Lock to portrait mode
+• Landscape (landscape-primary) ← Lock to landscape mode
+```
+
+### Use Cases
+
+**Auto Mode:**
+- Mobile phone users
+- Portable displays
+- Flexible viewing
+
+**Portrait Lock:**
+- Bedside tables (vertical stands)
+- Portrait-oriented frames
+- Phone on desk vertical
+
+**Landscape Lock:**
+- Car dashboards (mounted horizontally)
+- Wall-mounted displays (wide screens)
+- Desk displays (landscape orientation)
+
+### Technical Details
+
+- Uses Screen Orientation API (Web Standards)
+- Graceful fallback for unsupported browsers (silently ignored)
+- Persists to localStorage
+- Works with PWA installations
+- Zero performance impact
+- Try/catch error handling
+
+### Browser Support
+
+✅ **Modern Browsers**: Chrome, Edge, Opera, Firefox  
+✅ **Mobile**: Android Chrome, iOS Safari (limited)  
+⚠️ **Fallback**: If unsupported, orientation setting is ignored
+
+---
+
+## 🎨 Color Picker System
 
 ### 242 Tailwind Colors
 
@@ -71,7 +159,7 @@ Neutral, Stone
 
 ---
 
-## 📱 NEW: Progressive Web App (PWA)
+## 📱 Progressive Web App (PWA)
 
 ### Installation (All Platforms)
 
@@ -200,12 +288,13 @@ cusemit/
 │   ├── PWA_SETUP_GUIDE.md     - PWA guide
 │   └── CHECKLIST.md           - Feature status
 │
-├── 🎨 Components (5 files)
-│   ├── Clock.tsx              - Time display
+├── 🎨 Components (6 files)
+│   ├── Clock.tsx              - Time display (updated)
+│   ├── AnimatedNumber.tsx     - Digit animations NEW!
 │   ├── GearButton.tsx         - Settings toggle
 │   ├── SettingsSheet.tsx      - Settings panel (416 lines)
-│   ├── ColorPicker.tsx        - Color selector (240+ lines) NEW!
-│   └── PWAPrompt.tsx          - Install prompt NEW!
+│   ├── ColorPicker.tsx        - Color selector (240+ lines)
+│   └── PWAPrompt.tsx          - Install prompt
 │
 ├── 🏗️ State Management
 │   └── settings.ts            - Zustand store
@@ -216,14 +305,14 @@ cusemit/
 │   └── amoledSaver.ts         - Drift generation
 │
 ├── 🪝 Hooks
-│   └── usePWA.ts              - PWA lifecycle NEW!
+│   └── usePWA.ts              - PWA lifecycle
 │
 ├── 🎯 Styles
 │   └── globals.css            - Global imports
 │
 ├── 📱 PWA Files
-│   ├── manifest.json          - App metadata NEW!
-│   └── sw.js                  - Service Worker NEW!
+│   ├── manifest.json          - App metadata
+│   └── sw.js                  - Service Worker
 │
 ├── ⚙️ Configuration
 │   ├── vite.config.ts
@@ -233,7 +322,7 @@ cusemit/
 │   └── package.json
 │
 └── 📦 Build Output
-    └── dist/                  - Production build (108.55 KB gzip)
+    └── dist/                  - Production build (104.23 KB gzip)
 ```
 
 ---
@@ -244,25 +333,25 @@ cusemit/
 
 | Metric | Value |
 |--------|-------|
-| **Total Components** | 5 |
-| **Total Lines of Code** | ~800 |
-| **TypeScript Files** | 7 |
+| **Total Components** | 6 |
+| **Total Lines of Code** | ~850 |
+| **TypeScript Files** | 8 |
 | **Store Properties** | 15 |
 | **Font Options** | 19 + custom |
 | **Color Options** | 242 + custom |
-| **Documentation** | 8 files, 10K+ words |
+| **Documentation** | 11 files, 12K+ words |
 
 ### Performance
 
 | Metric | Value |
 |--------|-------|
-| **JS Bundle** | 323.88 KB |
-| **JS Gzipped** | 104.10 KB |
-| **CSS Bundle** | 19.15 KB |
-| **CSS Gzipped** | 4.45 KB |
-| **Total Gzipped** | 108.55 KB |
-| **Modules** | 347 transformed |
-| **Build Time** | 2.43s |
+| **JS Bundle** | 324.34 KB |
+| **JS Gzipped** | 104.23 KB |
+| **CSS Bundle** | 19.19 KB |
+| **CSS Gzipped** | 4.46 KB |
+| **Total Gzipped** | 108.69 KB |
+| **Modules** | 348 transformed |
+| **Build Time** | 2.25-2.88s |
 | **FPS (animations)** | 60 |
 
 ### Compatibility
@@ -276,6 +365,10 @@ cusemit/
 | Opera | ✅ Full | ✅ Full | Good |
 
 ---
+
+## 🚀 Quick Start
+
+```
 
 ## 🚀 Quick Start
 
@@ -463,13 +556,13 @@ Built with:
 
 ---
 
-**Version**: 1.1.0  
+**Version**: 1.2.1  
 **Status**: ✅ Production Ready  
 **Last Updated**: October 20, 2025  
 
 ## 🎉 Enjoy your enhanced Digital Clock!
 
-With 242 beautiful colors, PWA installation, and offline support, your clock is now more powerful than ever.
+With 242 beautiful colors, smooth animated numbers, orientation control, PWA installation, and offline support, your clock is now more powerful than ever.
 
 **Start**: `npm run dev`  
 **Build**: `npm run build`  

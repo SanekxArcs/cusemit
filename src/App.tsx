@@ -8,6 +8,14 @@ import { DriftOffset, generateRandomDrift, prefersReducedMotion } from '@/lib/am
 import { loadGoogleFont, CURATED_FONTS } from '@/lib/fonts'
 import { usePWA } from '@/hooks/usePWA';
 
+// Type for screen orientation API
+type OrientationLockType =
+  | 'portrait-primary'
+  | 'portrait-secondary'
+  | 'landscape-primary'
+  | 'landscape-secondary'
+  | 'any';
+
 export function App() {
   const { settings, loadSettings } = useSettingsStore();
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
@@ -80,6 +88,23 @@ export function App() {
       });
     }
   }, [settings.fontFamily, settings.customFontFamily]);
+
+  // Apply orientation setting
+  React.useEffect(() => {
+    if ('orientation' in screen && 'lock' in screen) {
+      const orientationMap: Record<string, OrientationLockType> = {
+        portrait: 'portrait-primary',
+        landscape: 'landscape-primary',
+        auto: 'any',
+      };
+
+      const orientationValue = orientationMap[settings.orientation] || 'any';
+
+      (screen as any).orientation.lock(orientationValue).catch(() => {
+        // Silently fail; orientation lock may not be supported
+      });
+    }
+  }, [settings.orientation]);
 
   // AMOLED drift logic
   React.useEffect(() => {

@@ -1,8 +1,38 @@
 # ✨ Digital Clock - Latest Updates
 
+## 📱 Version 1.2.1 - Orientation Control (NEW!)
+
+> **Latest**: Control display orientation - portrait, landscape, or auto!
+
+### Quick Summary
+- **Orientation Control** - Lock to portrait or landscape
+- **Auto Mode** - Follows device rotation (default)
+- **Persistent** - Setting saved to localStorage
+- **Works Everywhere** - Mobile, tablet, desktop
+- **Graceful Fallback** - Safely ignored if not supported
+
+[Full Guide: ORIENTATION_GUIDE.md](./ORIENTATION_GUIDE.md)
+
+---
+
+## ✨ Version 1.2.0 - Animated Numbers
+
+> Smooth animated number transitions like NumberFlow!
+
+### Quick Summary
+- **Smooth animations** on each digit change
+- **Vertical slide effect** (from bottom to top)
+- **0.4s duration** with smooth easing
+- **Respects motion preferences** (accessibility)
+- **Zero performance impact** (+0.13 KB gzipped)
+
+[Full Guide: ANIMATED_NUMBERS_GUIDE.md](./ANIMATED_NUMBERS_GUIDE.md)
+
+---
+
 ## 🎨 Version 1.1.0 - Color Picker & PWA Support
 
-> **Latest**: Color picker with 242 Tailwind colors + PWA installation support!
+> Color picker with 242 Tailwind colors + PWA installation support
 
 ---
 

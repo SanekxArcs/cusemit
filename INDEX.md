@@ -23,14 +23,23 @@
 ## 📚 Detailed Documentation
 
 ### Latest Updates ⭐ NEW!
-- **[UPDATES.md](./UPDATES.md)** - What's New (v1.1.0)
+- **[UPDATES.md](./UPDATES.md)** - What's New (v1.2.0)
+  - **Animated Numbers** (smooth digit transitions)
   - Color Picker with 242 Tailwind colors
   - PWA (Progressive Web App) support
-  - Installation instructions
   - Feature improvements
 
+### Animated Numbers Guide
+- **[ANIMATED_NUMBERS_GUIDE.md](./ANIMATED_NUMBERS_GUIDE.md)** ✨ NEW
+  - Smooth number animations
+  - How animations work
+  - Customization options
+  - Performance impact
+  - Technical details
+  - Examples and use cases
+
 ### Color Picker Guide
-- **[COLOR_PICKER_GUIDE.md](./COLOR_PICKER_GUIDE.md)** ✨ NEW
+- **[COLOR_PICKER_GUIDE.md](./COLOR_PICKER_GUIDE.md)** ✨
   - Complete color picker reference
   - 22 Tailwind color families explained
   - Shade levels (50-950)

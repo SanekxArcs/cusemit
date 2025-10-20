@@ -48,7 +48,25 @@
 - [x] Seconds toggle
 - [x] 12h/24h format toggle
 - [x] Padding X/Y sliders (0-3rem)
+- [x] **Animated number transitions** (NEW v1.2.0!)
+- [x] **Orientation control** (NEW v1.2.1!) - Auto/Portrait/Landscape
+
+### Animation Features
+- [x] **Animated Numbers** - Smooth digit transitions
+- [x] Vertical slide animation (0.4s)
+- [x] Individual character animation
+- [x] Respects prefers-reduced-motion
+- [x] Works with all time formats
 - [x] Real-time preview
+
+### Orientation Control (NEW v1.2.1!)
+- [x] Screen Orientation API integration
+- [x] 3 modes: Auto, Portrait, Landscape
+- [x] Dropdown selector in Display section
+- [x] Persists to localStorage
+- [x] Graceful fallback for unsupported devices
+- [x] Works with PWA installation
+- [x] Touch-friendly mobile implementation
 
 ### AMOLED/OLED Saver
 - [x] Toggle to enable
@@ -235,15 +253,68 @@ src/
 - [x] PWAPrompt component
 - [x] usePWA hook
 
+### Service Worker Optimization (v1.2.1) ✅
+- [x] Fixed: "Response body already used" clone error
+- [x] Replaced network-first with stale-while-revalidate strategy
+- [x] Immediate cache response (no network delay)
+- [x] Background auto-update mechanism
+- [x] Proper response cloning before body consumption
+- [x] Graceful error handling and fallbacks
+- [x] Improved performance with cache-first loading
+- [x] Zero console errors
+
 ### Documentation (NEW) ✅
 - [x] UPDATES.md - What's new in v1.1.0
 - [x] COLOR_PICKER_GUIDE.md - Complete color reference
 - [x] PWA_SETUP_GUIDE.md - Installation & configuration
-- [x] INDEX.md updated with new guides
+- [x] SERVICE_WORKER_FIX_SUMMARY.md - SW clone error fix overview
+- [x] SERVICE_WORKER_FIX.md - Technical deep dive on fix
+- [x] SERVICE_WORKER_TROUBLESHOOTING.md - Debugging guide
+- [x] ANIMATED_NUMBERS_GUIDE.md - Feature documentation
+- [x] ORIENTATION_GUIDE.md - Orientation control reference
+- [x] INDEX.md updated with all new guides
 
 ---
 
-**Status**: ✅ Complete and Production-Ready (v1.1.0)
+**Status**: ✅ Complete and Production-Ready (v1.2.1)
 
-All specs met. App includes advanced color picker with 242 colors and full PWA support for installation and offline use.
+All specs met. App includes advanced color picker with 242 colors, full PWA support for installation and offline use, smooth animated numbers, and orientation control.
+
+---
+
+## Version 1.2.0 - Animated Numbers (NEW) ✅
+
+### Animated Number Component ✅
+- [x] New `AnimatedNumber.tsx` component (32 lines)
+- [x] Smooth vertical slide animations (0.4s duration)
+- [x] easeOut timing function
+- [x] Individual digit transitions
+- [x] Integrated into Clock.tsx rendering
+- [x] Works with all time formats (HH:MM, HH:MM:SS, 12h, 24h)
+- [x] Respects `prefers-reduced-motion` accessibility setting
+- [x] No performance impact (efficient motion detection)
+- [x] Framer Motion powered
+
+---
+
+## Version 1.2.1 - Orientation Control (NEW) ✅
+
+### Screen Orientation API Integration ✅
+- [x] New `Orientation` type in store: 'portrait' | 'landscape' | 'auto'
+- [x] Dropdown selector in Settings → Display section
+- [x] 3 preset modes:
+  - [x] Auto (follows device rotation) - "Auto (follow device)"
+  - [x] Portrait (lock to portrait-primary) - "Portrait (portrait-primary)"
+  - [x] Landscape (lock to landscape-primary) - "Landscape (landscape-primary)"
+- [x] Persists to localStorage (500ms debounce)
+- [x] Graceful fallback for unsupported browsers
+- [x] Works with PWA installations
+- [x] Try/catch error handling in App.tsx effect
+
+### Improvements ✅
+- [x] Enhanced UX for wall-mounted displays (orientation locked)
+- [x] Better tablet experience (fixed portrait/landscape mode)
+- [x] Mobile flexibility maintained (auto mode by default)
+- [x] Zero performance overhead
+- [x] Comprehensive documentation in ORIENTATION_GUIDE.md
 

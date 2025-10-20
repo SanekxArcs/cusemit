@@ -347,6 +347,32 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                     <option value="24h">24-Hour</option>
                     <option value="12h">12-Hour</option>
                   </select>
+
+                  <label className="block text-sm text-gray-300">
+                    Orientation
+                  </label>
+                  <select
+                    value={settings.orientation}
+                    onChange={(e) =>
+                      updateSetting(
+                        'orientation',
+                        e.target.value as ClockSettings['orientation']
+                      )
+                    }
+                    className={cn(
+                      'w-full px-3 py-2 rounded bg-neutral-800 text-white',
+                      'border border-neutral-700 focus:outline-none focus:ring-2',
+                      'focus:ring-blue-500'
+                    )}
+                  >
+                    <option value="auto">Auto (follow device)</option>
+                    <option value="portrait">
+                      Portrait (portrait-primary)
+                    </option>
+                    <option value="landscape">
+                      Landscape (landscape-primary)
+                    </option>
+                  </select>
                 </div>
               </Section>
 
