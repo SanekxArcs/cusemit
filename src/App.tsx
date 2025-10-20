@@ -8,14 +8,6 @@ import { DriftOffset, generateRandomDrift, prefersReducedMotion } from '@/lib/am
 import { loadGoogleFont, CURATED_FONTS } from '@/lib/fonts'
 import { usePWA } from '@/hooks/usePWA';
 
-// Type for screen orientation API
-type OrientationLockType =
-  | 'portrait-primary'
-  | 'portrait-secondary'
-  | 'landscape-primary'
-  | 'landscape-secondary'
-  | 'any';
-
 export function App() {
   const { settings, loadSettings } = useSettingsStore();
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
@@ -89,22 +81,17 @@ export function App() {
     }
   }, [settings.fontFamily, settings.customFontFamily]);
 
-  // Apply orientation setting
-  React.useEffect(() => {
-    if ('orientation' in screen && 'lock' in screen) {
-      const orientationMap: Record<string, OrientationLockType> = {
-        portrait: 'portrait-primary',
-        landscape: 'landscape-primary',
-        auto: 'any',
-      };
-
-      const orientationValue = orientationMap[settings.orientation] || 'any';
-
-      (screen as any).orientation.lock(orientationValue).catch(() => {
-        // Silently fail; orientation lock may not be supported
-      });
-    }
-  }, [settings.orientation]);
+  // Apply orientation rotation via CSS transform
+  const getRotationStyle = (): React.CSSProperties => {
+    const rotationMap: Record<string, number> = {
+      default: 0,
+      rotate90: 90,
+      rotate180: 180,
+      rotate270: 270,
+    };
+    const angle = rotationMap[settings.orientation] || 0;
+    return angle === 0 ? {} : { transform: `rotate(${angle}deg)` };
+  };
 
   // AMOLED drift logic
   React.useEffect(() => {
@@ -179,31 +166,41 @@ export function App() {
 
   return (
     <div className="relative w-full h-screen overflow-hidden" style={bgStyle}>
-      {/* Clock Display */}
-      {time && (
-        <Clock
-          time={time}
-          color={settings.clockColor}
-          fontFamily={settings.customFontFamily || settings.fontFamily}
-          paddingX={settings.paddingX}
-          paddingY={settings.paddingY}
-          driftOffset={driftOffset}
+      {/* Rotation wrapper for orientation */}
+      <div
+        className="w-full h-full"
+        style={{
+          ...getRotationStyle(),
+          transformOrigin: 'center center',
+          transition: 'transform 0.3s ease-in-out',
+        }}
+      >
+        {/* Clock Display */}
+        {time && (
+          <Clock
+            time={time}
+            color={settings.clockColor}
+            fontFamily={settings.customFontFamily || settings.fontFamily}
+            paddingX={settings.paddingX}
+            paddingY={settings.paddingY}
+            driftOffset={driftOffset}
+            prefersReducedMotion={reducedMotion}
+          />
+        )}
+
+        {/* Settings Gear Button */}
+        <GearButton
+          isOpen={isSettingsOpen}
+          onToggle={() => setIsSettingsOpen(!isSettingsOpen)}
           prefersReducedMotion={reducedMotion}
         />
-      )}
 
-      {/* Settings Gear Button */}
-      <GearButton
-        isOpen={isSettingsOpen}
-        onToggle={() => setIsSettingsOpen(!isSettingsOpen)}
-        prefersReducedMotion={reducedMotion}
-      />
-
-      {/* Settings Sheet */}
-      <SettingsSheet
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-      />
+        {/* Settings Sheet */}
+        <SettingsSheet
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+        />
+      </div>
 
       {/* Toast Container */}
       <Toaster position="bottom-center" />

@@ -209,46 +209,76 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
 
                   <div>
                     <label className="block text-sm text-gray-300 mb-2">
-                      Font (Search)
+                      Font
+                    </label>
+                    <select
+                      value={settings.fontFamily}
+                      onChange={(e) => handleFontChange(e.target.value)}
+                      className={cn(
+                        'w-full px-3 py-2 rounded bg-neutral-800 text-white',
+                        'border border-neutral-700 focus:outline-none focus:ring-2',
+                        'focus:ring-blue-500'
+                      )}
+                    >
+                      {CURATED_FONTS.map((font) => (
+                        <option key={font.value} value={font.value}>
+                          {font.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-gray-300 mb-2">
+                      Search Fonts
                     </label>
                     <div className="relative">
                       <input
                         type="text"
-                        placeholder="Search fonts..."
+                        placeholder="Type to search..."
                         value={fontSearch}
                         onChange={(e) => {
                           setFontSearch(e.target.value);
                           setShowFontDropdown(true);
                         }}
-                        onFocus={() => setShowFontDropdown(true)}
+                        onFocus={() => {
+                          setFontSearch('');
+                          setShowFontDropdown(true);
+                        }}
                         className={cn(
                           'w-full px-3 py-2 rounded bg-neutral-800 text-white',
                           'border border-neutral-700 focus:outline-none focus:ring-2',
                           'focus:ring-blue-500'
                         )}
                       />
-                      {showFontDropdown && (
+                      {showFontDropdown && fontSearch.trim() && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-neutral-800 border border-neutral-700 rounded max-h-48 overflow-y-auto z-50">
-                          {filteredFonts.map((font) => (
-                            <button
-                              key={font.value}
-                              onClick={() => {
-                                handleFontChange(font.value);
-                                setFontSearch('');
-                                setShowFontDropdown(false);
-                              }}
-                              className={cn(
-                                'w-full text-left px-3 py-2 transition-colors',
-                                settings.fontFamily === font.value
-                                  ? 'bg-blue-600 text-white'
-                                  : 'hover:bg-neutral-700 text-gray-300'
-                              )}
-                            >
-                              <div style={{ fontFamily: font.label }}>
-                                {font.label}
-                              </div>
-                            </button>
-                          ))}
+                          {filteredFonts.length > 0 ? (
+                            filteredFonts.map((font) => (
+                              <button
+                                key={font.value}
+                                onClick={() => {
+                                  handleFontChange(font.value);
+                                  setFontSearch('');
+                                  setShowFontDropdown(false);
+                                }}
+                                className={cn(
+                                  'w-full text-left px-3 py-2 transition-colors',
+                                  settings.fontFamily === font.value
+                                    ? 'bg-blue-600 text-white'
+                                    : 'hover:bg-neutral-700 text-gray-300'
+                                )}
+                              >
+                                <div style={{ fontFamily: font.label }}>
+                                  {font.label}
+                                </div>
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-3 py-2 text-gray-400 text-sm">
+                              No fonts found
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -365,13 +395,10 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                       'focus:ring-blue-500'
                     )}
                   >
-                    <option value="auto">Auto (follow device)</option>
-                    <option value="portrait">
-                      Portrait (portrait-primary)
-                    </option>
-                    <option value="landscape">
-                      Landscape (landscape-primary)
-                    </option>
+                    <option value="default">Normal (0°)</option>
+                    <option value="rotate90">Rotate 90°</option>
+                    <option value="rotate180">Rotate 180°</option>
+                    <option value="rotate270">Rotate 270°</option>
                   </select>
                 </div>
               </Section>

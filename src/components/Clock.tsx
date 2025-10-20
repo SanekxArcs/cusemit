@@ -31,32 +31,33 @@ export const Clock: React.FC<ClockProps> = ({
   // Calculate font size to fit text within available width
   React.useEffect(() => {
     const calculateFontSize = () => {
-      if (!textRef.current) return
+      if (!textRef.current) return;
 
-      const container = textRef.current.parentElement
-      if (!container) return
+      const container = textRef.current.parentElement;
+      if (!container) return;
 
-      const availableWidth =
-        container.clientWidth -
-        paddingX * 2 * 16 // Convert rem to pixels
-      const availableHeight =
-        container.clientHeight -
-        paddingY * 2 * 16 // Convert rem to pixels
+      const availableWidth = container.clientWidth - paddingX * 2 * 16; // Convert rem to pixels
+      const availableHeight = container.clientHeight - paddingY * 2 * 16; // Convert rem to pixels
 
-      // Start with a large size and decrease until it fits
-      let size = 300
-      textRef.current.style.fontSize = `${size}px`
+      // Use viewport-relative scaling for better responsiveness on large screens
+      // Start with a size proportional to viewport dimensions
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      let size = Math.min(vw, vh) * 0.4; // Start at 40% of smaller viewport dimension
 
+      textRef.current.style.fontSize = `${size}px`;
+
+      // Fine-tune: decrease if doesn't fit
       while (
         (textRef.current.offsetWidth > availableWidth ||
           textRef.current.offsetHeight > availableHeight) &&
         size > 12
       ) {
-        size -= 5
-        textRef.current.style.fontSize = `${size}px`
+        size -= 5;
+        textRef.current.style.fontSize = `${size}px`;
       }
 
-      setFontSize(size)
+      setFontSize(size);
     }
 
     calculateFontSize()

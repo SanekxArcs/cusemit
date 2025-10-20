@@ -2,7 +2,7 @@ import { create } from 'zustand'
 
 export type BackgroundMode = 'solid' | 'gradient' | 'amoled'
 export type ClockFormat = '24h' | '12h'
-export type Orientation = 'portrait' | 'landscape' | 'auto';
+export type Orientation = 'default' | 'rotate90' | 'rotate270' | 'rotate180'
 
 export interface ClockSettings {
   // Background
@@ -43,9 +43,30 @@ const DEFAULT_SETTINGS: ClockSettings = {
   paddingY: 1,
   showSeconds: false,
   clockFormat: '24h',
-  orientation: 'auto',
+  orientation: 'default',
   enableAMOLEDSaver: false,
 };
+
+const normalizeOrientation = (value: unknown): Orientation => {
+  if (value === 'rotate90' || value === 'rotate270' || value === 'rotate180') {
+    return value as Orientation
+  }
+
+  switch (value) {
+    case 'default':
+    case 'auto':
+    case 'portrait':
+      return 'default'
+    case 'landscape':
+      return 'rotate90'
+    case 'portrait-secondary':
+      return 'rotate180'
+    case 'landscape-secondary':
+      return 'rotate270'
+    default:
+      return 'default'
+  }
+}
 
 interface SettingsStore {
   settings: ClockSettings
@@ -98,7 +119,11 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       try {
         const parsed = JSON.parse(stored)
         set({
-          settings: { ...DEFAULT_SETTINGS, ...parsed },
+          settings: {
+            ...DEFAULT_SETTINGS,
+            ...parsed,
+            orientation: normalizeOrientation(parsed.orientation),
+          },
         })
       } catch {
         // On parse error, keep defaults
