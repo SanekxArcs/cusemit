@@ -1,8 +1,9 @@
 import React from 'react'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/cn'
 import { getFontFamilyCSS } from '@/lib/fonts'
 import { DriftOffset } from '@/lib/amoledSaver'
+import { AnimatedNumber } from './AnimatedNumber';
 
 interface ClockProps {
   time: string
@@ -81,34 +82,43 @@ export const Clock: React.FC<ClockProps> = ({
   }
 
   return (
-    <motion.div
-      className={cn(
-        'absolute inset-0 flex items-center justify-center',
-        `px-[${paddingX}rem] py-[${paddingY}rem]`
-      )}
-      style={{
-        paddingLeft: `${paddingX}rem`,
-        paddingRight: `${paddingX}rem`,
-        paddingTop: `${paddingY}rem`,
-        paddingBottom: `${paddingY}rem`,
-      }}
-      animate="animate"
-      variants={driftVariants}
-    >
-      <div
-        ref={textRef}
-        className="text-center whitespace-nowrap font-bold leading-none"
+    <AnimatePresence mode="wait">
+      <motion.div
+        className={cn(
+          'absolute inset-0 flex items-center justify-center',
+          `px-[${paddingX}rem] py-[${paddingY}rem]`
+        )}
         style={{
-          fontSize: `${fontSize}px`,
-          color: color,
-          fontFamily: fontFamilyCSS,
-          transition: prefersReducedMotion
-            ? 'color 0s'
-            : 'color 0.3s ease-in-out',
+          paddingLeft: `${paddingX}rem`,
+          paddingRight: `${paddingX}rem`,
+          paddingTop: `${paddingY}rem`,
+          paddingBottom: `${paddingY}rem`,
         }}
+        animate="animate"
+        variants={driftVariants}
       >
-        {time}
-      </div>
-    </motion.div>
-  )
+        <div
+          ref={textRef}
+          className="text-center whitespace-nowrap font-bold leading-none"
+          style={{
+            fontSize: `${fontSize}px`,
+            color: color,
+            fontFamily: fontFamilyCSS,
+            transition: prefersReducedMotion
+              ? 'color 0s'
+              : 'color 0.3s ease-in-out',
+          }}
+        >
+          {/* Render each character with animation */}
+          {Array.from(time).map((char, index) => (
+            <AnimatedNumber
+              key={`time-${index}`}
+              value={char}
+              prefersReducedMotion={prefersReducedMotion}
+            />
+          ))}
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
 }
