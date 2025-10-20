@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/Clock.tsx","./src/components/GearButton.tsx","./src/components/SettingsSheet.tsx","./src/lib/amoledSaver.ts","./src/lib/cn.ts","./src/lib/fonts.ts","./src/store/settings.ts"],"version":"5.9.3"}
