@@ -1,0 +1,42 @@
+{
+  "name": "Digital Clock - Fullscreen Time Display",
+  "short_name": "Clock",
+  "description": "Minimal fullscreen digital clock with customizable settings, AMOLED burn-in protection, and offline support",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/clock-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/clock-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Show Clock",
+      "short_name": "Clock",
+      "description": "Open the digital clock",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/clock-96.png",
+          "type": "image/png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ]
+}
+

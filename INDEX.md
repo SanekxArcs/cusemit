@@ -22,6 +22,49 @@
 
 ## 📚 Detailed Documentation
 
+### Latest Updates ⭐ NEW!
+- **[UPDATES.md](./UPDATES.md)** - What's New (v1.1.0)
+  - Color Picker with 242 Tailwind colors
+  - PWA (Progressive Web App) support
+  - Installation instructions
+  - Feature improvements
+
+### Color Picker Guide
+- **[COLOR_PICKER_GUIDE.md](./COLOR_PICKER_GUIDE.md)** ✨ NEW
+  - Complete color picker reference
+  - 22 Tailwind color families explained
+  - Shade levels (50-950)
+  - Color selection tips
+  - Example themes
+  - Accessibility guidelines
+  - Troubleshooting
+
+### PWA Setup Guide
+- **[PWA_SETUP_GUIDE.md](./PWA_SETUP_GUIDE.md)** 📱 NEW
+  - Installation on all platforms
+  - Configuration guide
+  - Adding custom icons
+  - Service Worker explanation
+  - Offline functionality
+  - Update mechanism
+  - Security considerations
+  - Browser support matrix
+  - Deployment instructions
+
+### 🔧 Service Worker Documentation (IMPORTANT!)
+- **[SERVICE_WORKER_FIX.md](./SERVICE_WORKER_FIX.md)** 🔨 FIX
+  - Explains the clone error that was fixed
+  - Stale-while-revalidate caching strategy
+  - Benefits of the new approach
+  - Technical implementation details
+
+- **[SERVICE_WORKER_TROUBLESHOOTING.md](./SERVICE_WORKER_TROUBLESHOOTING.md)** 🆘 HELP
+  - Complete troubleshooting guide
+  - How to test Service Worker
+  - Common issues and solutions
+  - DevTools debugging steps
+  - Performance optimization tips
+
 ### Understanding the Project
 - **[PROJECT_SUMMARY.md](./PROJECT_SUMMARY.md)** ⭐ Recommended Overview
   - Complete project overview

@@ -5,6 +5,7 @@ import { cn } from '@/lib/cn'
 import { useSettingsStore, ClockSettings } from '@/store/settings'
 import { CURATED_FONTS, loadGoogleFont } from '@/lib/fonts'
 import { prefersReducedMotion } from '@/lib/amoledSaver'
+import { ColorPicker } from '@/components/ColorPicker';
 
 interface SettingsSheetProps {
   isOpen: boolean
@@ -157,48 +158,28 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
 
                 {settings.backgroundMode === 'solid' && (
                   <div className="mt-3">
-                    <label className="block text-sm text-gray-300 mb-2">
-                      Color
-                    </label>
-                    <input
-                      type="color"
+                    <ColorPicker
                       value={settings.solidColor}
-                      onChange={(e) =>
-                        updateSetting('solidColor', e.target.value)
-                      }
-                      className="w-full h-10 rounded cursor-pointer"
+                      onChange={(color) => updateSetting('solidColor', color)}
+                      label="Background Color"
                     />
                   </div>
                 )}
 
                 {settings.backgroundMode === 'gradient' && (
                   <div className="mt-3 space-y-3">
-                    <div>
-                      <label className="block text-sm text-gray-300 mb-2">
-                        Gradient Start
-                      </label>
-                      <input
-                        type="color"
-                        value={settings.gradientStart}
-                        onChange={(e) =>
-                          updateSetting('gradientStart', e.target.value)
-                        }
-                        className="w-full h-10 rounded cursor-pointer"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-300 mb-2">
-                        Gradient End
-                      </label>
-                      <input
-                        type="color"
-                        value={settings.gradientEnd}
-                        onChange={(e) =>
-                          updateSetting('gradientEnd', e.target.value)
-                        }
-                        className="w-full h-10 rounded cursor-pointer"
-                      />
-                    </div>
+                    <ColorPicker
+                      value={settings.gradientStart}
+                      onChange={(color) =>
+                        updateSetting('gradientStart', color)
+                      }
+                      label="Gradient Start"
+                    />
+                    <ColorPicker
+                      value={settings.gradientEnd}
+                      onChange={(color) => updateSetting('gradientEnd', color)}
+                      label="Gradient End"
+                    />
                     <label className="flex items-center space-x-2 mt-3">
                       <input
                         type="checkbox"
@@ -220,19 +201,11 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
               {/* Clock Appearance */}
               <Section title="Clock Appearance">
                 <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm text-gray-300 mb-2">
-                      Clock Color
-                    </label>
-                    <input
-                      type="color"
-                      value={settings.clockColor}
-                      onChange={(e) =>
-                        updateSetting('clockColor', e.target.value)
-                      }
-                      className="w-full h-10 rounded cursor-pointer"
-                    />
-                  </div>
+                  <ColorPicker
+                    value={settings.clockColor}
+                    onChange={(color) => updateSetting('clockColor', color)}
+                    label="Clock Color"
+                  />
 
                   <div>
                     <label className="block text-sm text-gray-300 mb-2">
@@ -244,8 +217,8 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                         placeholder="Search fonts..."
                         value={fontSearch}
                         onChange={(e) => {
-                          setFontSearch(e.target.value)
-                          setShowFontDropdown(true)
+                          setFontSearch(e.target.value);
+                          setShowFontDropdown(true);
                         }}
                         onFocus={() => setShowFontDropdown(true)}
                         className={cn(
@@ -260,9 +233,9 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                             <button
                               key={font.value}
                               onClick={() => {
-                                handleFontChange(font.value)
-                                setFontSearch('')
-                                setShowFontDropdown(false)
+                                handleFontChange(font.value);
+                                setFontSearch('');
+                                setShowFontDropdown(false);
                               }}
                               className={cn(
                                 'w-full text-left px-3 py-2 transition-colors',
@@ -271,9 +244,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                                   : 'hover:bg-neutral-700 text-gray-300'
                               )}
                             >
-                              <div
-                                style={{ fontFamily: font.label }}
-                              >
+                              <div style={{ fontFamily: font.label }}>
                                 {font.label}
                               </div>
                             </button>
@@ -412,7 +383,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
         </>
       )}
     </AnimatePresence>
-  )
+  );
 }
 
 interface SectionProps {
