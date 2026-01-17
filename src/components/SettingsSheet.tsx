@@ -983,6 +983,30 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                     </button>
                   </div>
 
+                  {!settings.showSeconds && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="flex items-center justify-between pt-1"
+                    >
+                      <span className="text-sm text-gray-300">Pulse Colon</span>
+                      <button
+                        onClick={() => updateSetting('pulseColon', !settings.pulseColon)}
+                        className={cn(
+                          "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                          settings.pulseColon ? "bg-blue-600" : "bg-neutral-700"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                            settings.pulseColon ? "translate-x-6" : "translate-x-1"
+                          )}
+                        />
+                      </button>
+                    </motion.div>
+                  )}
+
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-300">24-Hour Format</span>
                     <button

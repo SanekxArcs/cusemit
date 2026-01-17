@@ -263,6 +263,8 @@ export function App() {
             bottomText={settings.bottomText}
             showTopText={settings.showTopText}
             showBottomText={settings.showBottomText}
+            showSeconds={settings.showSeconds}
+            pulseColon={settings.pulseColon}
           />
         )}
       </div>

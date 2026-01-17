@@ -30,6 +30,8 @@ interface ClockProps {
   bottomText?: string
   showTopText?: boolean
   showBottomText?: boolean
+  showSeconds?: boolean
+  pulseColon?: boolean
 }
 
 export const Clock: React.FC<ClockProps> = ({
@@ -57,6 +59,8 @@ export const Clock: React.FC<ClockProps> = ({
   bottomText,
   showTopText,
   showBottomText,
+  showSeconds,
+  pulseColon,
 }) => {
   const fontFamilyCSS = getFontFamilyCSS(fontFamily)
   const [fontSize, setFontSize] = React.useState(100)
@@ -182,15 +186,41 @@ export const Clock: React.FC<ClockProps> = ({
           <div
             className="flex items-center justify-center"
           >
-            {Array.from(time).map((char, index) => (
-              <AnimatedNumber
-                key={`time-${index}-${styleKey}`}
-                value={char}
-                prefersReducedMotion={prefersReducedMotion}
-                animationMode={animationMode}
-                style={textStyle}
-              />
-            ))}
+            {Array.from(time).map((char, index) => {
+              const isColon = char === ':';
+              const shouldPulse = isColon && pulseColon && !showSeconds && !prefersReducedMotion;
+
+              const content = (
+                <AnimatedNumber
+                  key={`time-${index}-${styleKey}`}
+                  value={char}
+                  prefersReducedMotion={prefersReducedMotion}
+                  animationMode={animationMode}
+                  style={textStyle}
+                />
+              );
+
+              if (shouldPulse) {
+                return (
+                  <motion.div
+                    key={`pulse-${index}-${styleKey}`}
+                    animate={{
+                      opacity: [1, 0.2, 1],
+                    }}
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                    className="flex items-center justify-center"
+                  >
+                    {content}
+                  </motion.div>
+                );
+              }
+
+              return content;
+            })}
           </div>
 
           {/* Bottom Custom Text */}

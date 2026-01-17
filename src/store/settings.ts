@@ -42,6 +42,7 @@ export interface ClockSettings {
   animationMode: 'slide-v' | 'slide-h' | 'fade' | 'zoom' | 'flip-v' | 'flip-h' | 'blur' | 'bounce' | 'rotate' | 'none';
   autoHideControls: boolean;
   ampmPosition: 'before' | 'after' | 'top' | 'bottom';
+  pulseColon: boolean;
 
   // AMOLED Saver
   enableAMOLEDSaver: boolean;
@@ -97,6 +98,7 @@ const DEFAULT_SETTINGS: ClockSettings = {
   bottomText: '',
   showTopText: false,
   showBottomText: false,
+  pulseColon: true,
   savedFonts: [],
   hiddenCuratedFonts: [],
 };
