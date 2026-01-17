@@ -30,6 +30,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
   const modeDropdownRef = React.useRef<HTMLDivElement>(null)
   const reducedMotion = prefersReducedMotion()
   const [isOnline, setIsOnline] = React.useState(typeof window !== 'undefined' ? window.navigator.onLine : true)
+  const [isDragging, setIsDragging] = React.useState(false)
 
   React.useEffect(() => {
     const handleOnline = () => setIsOnline(true)
@@ -168,8 +169,13 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
           <motion.div
             className={cn(
               'fixed right-0 top-0 bottom-0 w-full sm:w-96 bg-neutral-900',
-              'border-l border-neutral-800 shadow-lg overflow-y-auto z-50'
+              'border-l border-neutral-800 shadow-lg overflow-y-auto z-50',
+              'transition-all duration-300',
+              isDragging ? 'bg-black/10 backdrop-blur-0' : 'bg-neutral-900'
             )}
+            style={{
+              opacity: isDragging ? 0.15 : 1,
+            }}
             variants={sheetVariants}
             initial="hidden"
             animate="visible"
@@ -387,6 +393,9 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                         max="360"
                         step="1"
                         value={settings.bgGradientAngle}
+                        onPointerDown={() => setIsDragging(true)}
+                        onPointerUp={() => setIsDragging(false)}
+                        onPointerCancel={() => setIsDragging(false)}
                         onChange={(e) => updateSetting('bgGradientAngle', parseInt(e.target.value))}
                         className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
                       />
@@ -474,6 +483,9 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                           max="5"
                           step="0.01"
                           value={settings.bgScale}
+                          onPointerDown={() => setIsDragging(true)}
+                          onPointerUp={() => setIsDragging(false)}
+                          onPointerCancel={() => setIsDragging(false)}
                           onChange={(e) => updateSetting('bgScale', parseFloat(e.target.value))}
                           className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
                         />
@@ -489,6 +501,9 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                           max="100"
                           step="1"
                           value={settings.bgOffsetX}
+                          onPointerDown={() => setIsDragging(true)}
+                          onPointerUp={() => setIsDragging(false)}
+                          onPointerCancel={() => setIsDragging(false)}
                           onChange={(e) => updateSetting('bgOffsetX', parseFloat(e.target.value))}
                           className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
                         />
@@ -504,6 +519,9 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                           max="100"
                           step="1"
                           value={settings.bgOffsetY}
+                          onPointerDown={() => setIsDragging(true)}
+                          onPointerUp={() => setIsDragging(false)}
+                          onPointerCancel={() => setIsDragging(false)}
                           onChange={(e) => updateSetting('bgOffsetY', parseFloat(e.target.value))}
                           className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
                         />
@@ -574,6 +592,9 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                           max="360"
                           step="1"
                           value={settings.clockGradientAngle}
+                            onPointerDown={() => setIsDragging(true)}
+                            onPointerUp={() => setIsDragging(false)}
+                            onPointerCancel={() => setIsDragging(false)}
                           onChange={(e) => updateSetting('clockGradientAngle', parseInt(e.target.value))}
                           className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
                         />
@@ -616,6 +637,9 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                             max="10"
                             step="0.1"
                             value={settings.strokeWidth}
+                            onPointerDown={() => setIsDragging(true)}
+                            onPointerUp={() => setIsDragging(false)}
+                            onPointerCancel={() => setIsDragging(false)}
                             onChange={(e) => updateSetting('strokeWidth', parseFloat(e.target.value))}
                             className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
                           />
@@ -1179,6 +1203,9 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                       max="3"
                       step="0.01"
                       value={settings.scale}
+                      onPointerDown={() => setIsDragging(true)}
+                      onPointerUp={() => setIsDragging(false)}
+                      onPointerCancel={() => setIsDragging(false)}
                       onChange={(e) =>
                         updateSetting('scale', parseFloat(e.target.value))
                       }
@@ -1196,6 +1223,9 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                       max="100"
                       step="1"
                       value={settings.offsetX}
+                      onPointerDown={() => setIsDragging(true)}
+                      onPointerUp={() => setIsDragging(false)}
+                      onPointerCancel={() => setIsDragging(false)}
                       onChange={(e) =>
                         updateSetting('offsetX', parseFloat(e.target.value))
                       }
@@ -1213,6 +1243,9 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                       max="100"
                       step="1"
                       value={settings.offsetY}
+                      onPointerDown={() => setIsDragging(true)}
+                      onPointerUp={() => setIsDragging(false)}
+                      onPointerCancel={() => setIsDragging(false)}
                       onChange={(e) =>
                         updateSetting('offsetY', parseFloat(e.target.value))
                       }
