@@ -1,1 +1,23 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/amoledmesh.tsx","./src/components/animatednumber.tsx","./src/components/clock.tsx","./src/components/colorpicker.tsx","./src/components/gearbutton.tsx","./src/components/pwaprompt.tsx","./src/components/refreshbutton.tsx","./src/components/settingssheet.tsx","./src/hooks/usepwa.ts","./src/lib/amoledsaver.ts","./src/lib/cn.ts","./src/lib/fonts.ts","./src/store/settings.ts"],"version":"5.9.3"}
+{
+    "root": [
+        "./src/app.tsx",
+        "./src/main.tsx",
+        "./src/vite-env.d.ts",
+        "./src/components/amoledmesh.tsx",
+        "./src/components/animatednumber.tsx",
+        "./src/components/clock.tsx",
+        "./src/components/colorpicker.tsx",
+        "./src/components/gearbutton.tsx",
+        "./src/components/infobutton.tsx",
+        "./src/components/infodialog.tsx",
+        "./src/components/pwaprompt.tsx",
+        "./src/components/refreshbutton.tsx",
+        "./src/components/settingssheet.tsx",
+        "./src/hooks/usepwa.ts",
+        "./src/lib/amoledsaver.ts",
+        "./src/lib/cn.ts",
+        "./src/lib/fonts.ts",
+        "./src/store/settings.ts"
+    ],
+    "version": "5.9.3"
+}
