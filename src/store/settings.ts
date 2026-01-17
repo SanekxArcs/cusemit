@@ -10,6 +10,7 @@ export interface ClockSettings {
   solidColor: string;
   gradientStart: string;
   gradientEnd: string;
+  bgGradientAngle: number;
   animatedGradient: boolean;
   backgroundImage: string;
   bgScale: number;
@@ -17,7 +18,14 @@ export interface ClockSettings {
   bgOffsetY: number;
 
   // Clock appearance
+  clockMode: 'solid' | 'gradient';
   clockColor: string;
+  clockGradientStart: string;
+  clockGradientEnd: string;
+  clockGradientAngle: number;
+  showStroke: boolean;
+  strokeWidth: number;
+  strokeColor: string;
   fontFamily: string;
   customFontFamily: string;
   fontWeight: number;
@@ -56,12 +64,20 @@ const DEFAULT_SETTINGS: ClockSettings = {
   solidColor: '#1a1a1a',
   gradientStart: '#1a1a1a',
   gradientEnd: '#2d2d2d',
+  bgGradientAngle: 135,
   animatedGradient: false,
   backgroundImage: '',
   bgScale: 1.1,
   bgOffsetX: 50,
   bgOffsetY: 50,
+  clockMode: 'solid',
   clockColor: '#ffffff',
+  clockGradientStart: '#ffffff',
+  clockGradientEnd: '#666666',
+  clockGradientAngle: 135,
+  showStroke: false,
+  strokeWidth: 1,
+  strokeColor: '#000000',
   fontFamily: 'Inter',
   customFontFamily: '',
   fontWeight: 700,

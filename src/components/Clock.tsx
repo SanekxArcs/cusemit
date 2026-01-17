@@ -9,7 +9,14 @@ interface ClockProps {
   time: string
   ampm?: string
   ampmPosition?: 'before' | 'after' | 'top' | 'bottom'
+  clockMode: 'solid' | 'gradient'
   color: string
+  gradientStart: string
+  gradientEnd: string
+  gradientAngle: number
+  showStroke: boolean
+  strokeWidth: number
+  strokeColor: string
   fontFamily: string
   scale: number
   offsetX: number
@@ -29,7 +36,14 @@ export const Clock: React.FC<ClockProps> = ({
   time,
   ampm,
   ampmPosition = 'after',
+  clockMode = 'solid',
   color,
+  gradientStart,
+  gradientEnd,
+  gradientAngle,
+  showStroke,
+  strokeWidth,
+  strokeColor,
   fontFamily,
   scale,
   offsetX,
@@ -109,6 +123,24 @@ export const Clock: React.FC<ClockProps> = ({
     },
   }
 
+  const textStyle: React.CSSProperties = clockMode === 'gradient' ? {
+    background: `linear-gradient(${gradientAngle}deg, ${gradientStart}, ${gradientEnd})`,
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    backgroundClip: 'text',
+    color: 'transparent',
+  } : {
+    color: color,
+  };
+
+  if (showStroke) {
+    (textStyle as any).WebkitTextStroke = `${strokeWidth}px ${strokeColor}`;
+  }
+
+  const styleKey = clockMode === 'gradient'
+    ? `${gradientStart}-${gradientEnd}-${gradientAngle}-${showStroke}-${strokeWidth}-${strokeColor}`
+    : `${color}-${showStroke}-${strokeWidth}-${strokeColor}`;
+
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -120,27 +152,26 @@ export const Clock: React.FC<ClockProps> = ({
           className="relative leading-none flex items-center justify-center"
           style={{
             fontSize: `${fontSize}px`,
-            color: color,
             fontFamily: fontFamilyCSS,
             fontWeight: fontWeight,
-            transition: prefersReducedMotion
-              ? 'color 0s'
-              : 'color 0.3s ease-in-out',
           }}
         >
           {/* Top Custom Text */}
           {showTopText && topText && !isTopTextHidden && (
             <div
-              className="absolute bottom-full mb-[0.2em] left-1/2 -translate-x-1/2 whitespace-nowrap opacity-60"
-              style={{ fontSize: '0.3em' }}
+              className="absolute bottom-full mb-[0.2em] left-1/2 -translate-x-1/2 whitespace-nowrap"
+              style={{
+                fontSize: '0.3em',
+              }}
             >
               <div className="flex items-center justify-center">
                 {Array.from(topText).map((char, index) => (
                   <AnimatedNumber
-                    key={`top-${index}`}
+                    key={`top-${index}-${styleKey}`}
                     value={char}
                     prefersReducedMotion={prefersReducedMotion}
                     animationMode={animationMode}
+                    style={{ ...textStyle, opacity: 0.6 }}
                   />
                 ))}
               </div>
@@ -148,13 +179,16 @@ export const Clock: React.FC<ClockProps> = ({
           )}
 
           {/* Main Time */}
-          <div className="flex items-center justify-center tabular-nums">
+          <div
+            className="flex items-center justify-center proportional-nums"
+          >
             {Array.from(time).map((char, index) => (
               <AnimatedNumber
-                key={`time-${index}`}
+                key={`time-${index}-${styleKey}`}
                 value={char}
                 prefersReducedMotion={prefersReducedMotion}
                 animationMode={animationMode}
+                style={textStyle}
               />
             ))}
           </div>
@@ -162,16 +196,19 @@ export const Clock: React.FC<ClockProps> = ({
           {/* Bottom Custom Text */}
           {showBottomText && bottomText && !isBottomTextHidden && (
             <div
-              className="absolute top-full mt-[0.2em] left-1/2 -translate-x-1/2 whitespace-nowrap opacity-60"
-              style={{ fontSize: '0.3em' }}
+              className="absolute top-full mt-[0.2em] left-1/2 -translate-x-1/2 whitespace-nowrap"
+              style={{
+                fontSize: '0.3em',
+              }}
             >
               <div className="flex items-center justify-center">
                 {Array.from(bottomText).map((char, index) => (
                   <AnimatedNumber
-                    key={`bottom-${index}`}
+                    key={`bottom-${index}-${styleKey}`}
                     value={char}
                     prefersReducedMotion={prefersReducedMotion}
                     animationMode={animationMode}
+                    style={{ ...textStyle, opacity: 0.6 }}
                   />
                 ))}
               </div>
@@ -190,16 +227,16 @@ export const Clock: React.FC<ClockProps> = ({
               )}
               style={{
                 fontSize: (ampmPosition === 'top' || ampmPosition === 'bottom') ? '0.35em' : '0.45em',
-                opacity: 0.8
               }}
             >
               <div className="flex items-center justify-center">
                 {Array.from(ampm).map((char, index) => (
                   <AnimatedNumber
-                    key={`ampm-${index}`}
+                    key={`ampm-${index}-${styleKey}`}
                     value={char}
                     prefersReducedMotion={prefersReducedMotion}
                     animationMode={animationMode}
+                    style={{ ...textStyle, opacity: 0.8 }}
                   />
                 ))}
               </div>

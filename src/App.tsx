@@ -187,9 +187,8 @@ export function App() {
     }
 
     if (settings.backgroundMode === 'gradient') {
-      const angle = 135;
       return {
-        background: `linear-gradient(${angle}deg, ${settings.gradientStart}, ${settings.gradientEnd})`,
+        background: `linear-gradient(${settings.bgGradientAngle}deg, ${settings.gradientStart}, ${settings.gradientEnd})`,
         transition: reducedMotion ? 'none' : 'background 0.3s ease-in-out',
       };
     }
@@ -213,6 +212,7 @@ export function App() {
     settings.backgroundMode,
     settings.gradientStart,
     settings.gradientEnd,
+    settings.bgGradientAngle,
     settings.solidColor,
     settings.backgroundImage,
     settings.bgScale,
@@ -239,7 +239,14 @@ export function App() {
             time={time.main}
             ampm={time.ampm}
             ampmPosition={settings.ampmPosition}
+            clockMode={settings.clockMode}
             color={settings.clockColor}
+            gradientStart={settings.clockGradientStart}
+            gradientEnd={settings.clockGradientEnd}
+            gradientAngle={settings.clockGradientAngle}
+            showStroke={settings.showStroke}
+            strokeWidth={settings.strokeWidth}
+            strokeColor={settings.strokeColor}
             fontFamily={settings.customFontFamily || settings.fontFamily}
             scale={settings.scale}
             offsetX={settings.offsetX}

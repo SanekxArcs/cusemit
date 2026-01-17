@@ -377,6 +377,20 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                       onChange={(color) => updateSetting('gradientEnd', color)}
                       label="Gradient End"
                     />
+                    <div className="space-y-2 pt-1">
+                      <label className="block text-sm text-gray-400 mb-2 tabular-nums">
+                        Gradient Angle: {settings.bgGradientAngle}°
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="360"
+                        step="1"
+                        value={settings.bgGradientAngle}
+                        onChange={(e) => updateSetting('bgGradientAngle', parseInt(e.target.value))}
+                        className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      />
+                    </div>
                     <div className="flex items-center justify-between mt-3">
                       <span className="text-sm text-gray-300">Animated Gradient</span>
                       <button
@@ -451,7 +465,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
 
                     <div className="space-y-4 pt-2 border-t border-neutral-800">
                       <div>
-                        <label className="block text-sm text-gray-400 mb-2 tabular-nums">
+                        <label className="block text-sm text-gray-400 mb-2 proportional-nums">
                           Image Scale: {(settings.bgScale * 100).toFixed(0)}%
                         </label>
                         <input
@@ -466,7 +480,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                       </div>
 
                       <div>
-                        <label className="block text-sm text-gray-400 mb-2 tabular-nums">
+                        <label className="block text-sm text-gray-400 mb-2 proportional-nums">
                           Image Horizontal: {settings.bgOffsetX.toFixed(0)}%
                         </label>
                         <input
@@ -481,7 +495,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                       </div>
 
                       <div>
-                        <label className="block text-sm text-gray-400 mb-2 tabular-nums">
+                        <label className="block text-sm text-gray-400 mb-2 proportional-nums">
                           Image Vertical: {settings.bgOffsetY.toFixed(0)}%
                         </label>
                         <input
@@ -508,11 +522,112 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
 
               <Section title="Clock Appearance">
                 <div className="space-y-3">
-                  <ColorPicker
-                    value={settings.clockColor}
-                    onChange={(color) => updateSetting('clockColor', color)}
-                    label="Clock Color"
-                  />
+                  <div className="space-y-2">
+                    <label className="block text-sm text-gray-300">Clock Mode</label>
+                    <div className="flex bg-neutral-800 p-1 rounded-lg">
+                      <button
+                        onClick={() => updateSetting('clockMode', 'solid')}
+                        className={cn(
+                          "flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all",
+                          settings.clockMode === 'solid' ? "bg-neutral-700 text-white shadow-sm" : "text-gray-500 hover:text-gray-300"
+                        )}
+                      >
+                        Solid
+                      </button>
+                      <button
+                        onClick={() => updateSetting('clockMode', 'gradient')}
+                        className={cn(
+                          "flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all",
+                          settings.clockMode === 'gradient' ? "bg-neutral-700 text-white shadow-sm" : "text-gray-500 hover:text-gray-300"
+                        )}
+                      >
+                        Gradient
+                      </button>
+                    </div>
+                  </div>
+
+                  {settings.clockMode === 'solid' ? (
+                    <ColorPicker
+                      value={settings.clockColor}
+                      onChange={(color) => updateSetting('clockColor', color)}
+                      label="Clock Color"
+                    />
+                  ) : (
+                    <div className="space-y-3 p-3 rounded-lg bg-neutral-900/50 border border-neutral-800">
+                      <ColorPicker
+                        value={settings.clockGradientStart}
+                        onChange={(color) => updateSetting('clockGradientStart', color)}
+                        label="Gradient Start"
+                      />
+                      <ColorPicker
+                        value={settings.clockGradientEnd}
+                        onChange={(color) => updateSetting('clockGradientEnd', color)}
+                        label="Gradient End"
+                      />
+                      <div className="space-y-2 pt-1">
+                        <label className="block text-sm text-gray-400 mb-2 tabular-nums">
+                          Gradient Angle: {settings.clockGradientAngle}°
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="360"
+                          step="1"
+                          value={settings.clockGradientAngle}
+                          onChange={(e) => updateSetting('clockGradientAngle', parseInt(e.target.value))}
+                          className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-4 pt-2 border-t border-neutral-800">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-300">Text Stroke</span>
+                      <button
+                        onClick={() => updateSetting('showStroke', !settings.showStroke)}
+                        className={cn(
+                          "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                          settings.showStroke ? "bg-blue-600" : "bg-neutral-700"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                            settings.showStroke ? "translate-x-6" : "translate-x-1"
+                          )}
+                        />
+                      </button>
+                    </div>
+
+                    {settings.showStroke && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="space-y-3 overflow-hidden"
+                      >
+                        <div className="space-y-2">
+                          <label className="block text-sm text-gray-400 mb-2 tabular-nums">
+                            Stroke Width: {settings.strokeWidth}px
+                          </label>
+                          <input
+                            type="range"
+                            min="0.1"
+                            max="10"
+                            step="0.1"
+                            value={settings.strokeWidth}
+                            onChange={(e) => updateSetting('strokeWidth', parseFloat(e.target.value))}
+                            className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                          />
+                        </div>
+                        <ColorPicker
+                          value={settings.strokeColor}
+                          onChange={(color) => updateSetting('strokeColor', color)}
+                          label="Stroke Color"
+                        />
+                      </motion.div>
+                    )}
+                  </div>
 
                   <div className="relative" ref={dropdownRef}>
                     <label className="block text-sm text-gray-300 mb-2">
@@ -1055,7 +1170,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
               <Section title="Position & Scale">
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm text-gray-300 mb-2 tabular-nums">
+                    <label className="block text-sm text-gray-300 mb-2 proportional-nums">
                       Scale: {(settings.scale * 100).toFixed(0)}%
                     </label>
                     <input
@@ -1072,7 +1187,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-sm text-gray-300 mb-2 tabular-nums">
+                    <label className="block text-sm text-gray-300 mb-2 proportional-nums">
                       Horizontal Position: {settings.offsetX.toFixed(0)}%
                     </label>
                     <input
@@ -1089,7 +1204,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-sm text-gray-300 mb-2 tabular-nums">
+                    <label className="block text-sm text-gray-300 mb-2 proportional-nums">
                       Vertical Position: {settings.offsetY.toFixed(0)}%
                     </label>
                     <input

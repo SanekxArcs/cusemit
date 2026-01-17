@@ -5,12 +5,14 @@ interface AnimatedNumberProps {
   value: string
   prefersReducedMotion: boolean
   animationMode: 'slide-v' | 'slide-h' | 'fade' | 'zoom' | 'flip-v' | 'flip-h' | 'blur' | 'bounce' | 'rotate' | 'none'
+  style?: React.CSSProperties
 }
 
 export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
   value,
   prefersReducedMotion,
   animationMode,
+  style,
 }) => {
   const previousValue = React.useRef<string>(value)
 
@@ -19,7 +21,7 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
   }, [value])
 
   if (animationMode === 'none' || prefersReducedMotion) {
-    return <span className="inline-block tabular-nums" style={{ minWidth: '1ch' }}>{value}</span>;
+    return <span className="inline-block proportional-nums" style={style}>{value}</span>;
   }
 
   const getVariants = () => {
@@ -96,11 +98,10 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
       animate={variants.animate}
       exit={variants.exit}
       transition={transition}
-      className="inline-block tabular-nums"
+      className="inline-block proportional-nums"
       style={{
         display: 'inline-block',
-        minWidth: '1ch',
-        perspective: '1000px',
+        ...style
       }}
     >
       {value}
