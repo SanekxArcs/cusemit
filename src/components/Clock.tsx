@@ -180,7 +180,7 @@ export const Clock: React.FC<ClockProps> = ({
 
           {/* Main Time */}
           <div
-            className="flex items-center justify-center proportional-nums"
+            className="flex items-center justify-center"
           >
             {Array.from(time).map((char, index) => (
               <AnimatedNumber

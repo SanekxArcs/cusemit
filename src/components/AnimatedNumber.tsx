@@ -20,8 +20,10 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
     previousValue.current = value
   }, [value])
 
+  const isDigit = /^\d$/.test(value);
+
   if (animationMode === 'none' || prefersReducedMotion) {
-    return <span className="inline-block proportional-nums" style={style}>{value}</span>;
+    return <span className={`inline-block ${isDigit ? 'tabular-nums' : 'proportional-nums'}`} style={style}>{value}</span>;
   }
 
   const getVariants = () => {
@@ -98,7 +100,7 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
       animate={variants.animate}
       exit={variants.exit}
       transition={transition}
-      className="inline-block proportional-nums"
+      className={`inline-block ${isDigit ? 'tabular-nums' : 'proportional-nums'}`}
       style={{
         display: 'inline-block',
         ...style
