@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { cn } from '@/lib/cn'
 import { useSettingsStore } from '@/store/settings'
-import { CURATED_FONTS, loadGoogleFont } from '@/lib/fonts'
+import { CURATED_FONTS, loadGoogleFont, loadAllCuratedFonts } from '@/lib/fonts'
 import { prefersReducedMotion } from '@/lib/amoledSaver'
 import { ColorPicker } from '@/components/ColorPicker';
 
@@ -58,6 +58,12 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  React.useEffect(() => {
+    if (showFontDropdown) {
+      loadAllCuratedFonts();
+    }
+  }, [showFontDropdown])
 
   // Filter fonts based on search
   const filteredFonts = React.useMemo(() => {
@@ -756,16 +762,24 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                                     <div className="flex flex-col truncate">
                                       <span
                                         className="text-base truncate"
-                                        style={{ fontFamily: font.label }}
+                                        style={{ fontFamily: `'${font.label}', sans-serif` }}
                                       >
                                         {font.label}
                                       </span>
-                                      <span className={cn(
-                                        "text-[10px] uppercase tracking-wider opacity-60",
-                                        settings.fontFamily === font.value ? "text-white" : "text-gray-400"
-                                      )}>
-                                        {(font as any).isSaved ? 'Custom' : `${font.weights.length} weights`}
-                                      </span>
+                                      <div className="flex items-center space-x-2">
+                                        <span className={cn(
+                                          "text-[10px] uppercase tracking-wider opacity-60",
+                                          settings.fontFamily === font.value ? "text-white" : "text-gray-400"
+                                        )}>
+                                          {(font as any).isSaved ? 'Custom' : `${font.weights.length} weights`}
+                                        </span>
+                                        <span
+                                          className="text-xs text-blue-400/80 font-medium tabular-nums"
+                                          style={{ fontFamily: `'${font.label}', sans-serif` }}
+                                        >
+                                          12:45
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
                                   <div className="flex items-center space-x-1 shrink-0">

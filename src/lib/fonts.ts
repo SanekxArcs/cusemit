@@ -29,6 +29,14 @@ export const CURATED_FONTS = [
   { label: 'Bebas Neue', value: 'Bebas+Neue', weights: [400] },
   { label: 'Fredoka One', value: 'Fredoka+One', weights: [400] },
   { label: 'Righteous', value: 'Righteous', weights: [400] },
+  { label: 'Press Start 2P', value: 'Press+Start+2P', weights: [400] },
+  { label: 'Vast Shadow', value: 'Vast+Shadow', weights: [400] },
+  { label: 'Modak', value: 'Modak', weights: [400] },
+  { label: 'Oi', value: 'Oi', weights: [400] },
+  { label: 'Honk', value: 'Honk', weights: [400] },
+  { label: 'Frijole', value: 'Frijole', weights: [400] },
+  { label: 'Kumar One', value: 'Kumar+One', weights: [400] },
+  { label: 'Rubik Glitch Pop', value: 'Rubik+Glitch+Pop', weights: [400] },
 ]
 
 /**
@@ -102,6 +110,30 @@ export async function loadGoogleFont(
       }
     }
   }
+}
+
+/**
+ * Load all curated fonts at once (for dropdown previews).
+ * Uses a single multi-family request.
+ */
+export async function loadAllCuratedFonts(): Promise<void> {
+  const families = CURATED_FONTS.map(f => `${f.value}:wght@400`).join('&family=');
+  const url = `https://fonts.googleapis.com/css2?family=${families}&display=swap`;
+  
+  return new Promise((resolve) => {
+    if (document.querySelector('link[data-all-fonts="true"]')) {
+      resolve();
+      return;
+    }
+    
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = url;
+    link.setAttribute('data-all-fonts', 'true');
+    link.onload = () => resolve();
+    link.onerror = () => resolve(); // Don't block if preview load fails
+    document.head.appendChild(link);
+  });
 }
 
 /**
