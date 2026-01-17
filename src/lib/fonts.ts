@@ -39,29 +39,69 @@ export async function loadGoogleFont(
   fontFamily: string,
   weights: number[] = [400, 700]
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // Check if font is already loaded
-    const existingLink = document.querySelector(
-      `link[data-font="${fontFamily}"]`
-    )
-    if (existingLink) {
-      resolve()
-      return
+  // Normalize font family name for API (replace spaces with +)
+  const normalizedFamily = fontFamily.trim().replace(/\s+/g, '+')
+  
+  // Deduplicate and sort weights
+  const uniqueWeights = Array.from(new Set(weights)).sort((a, b) => a - b)
+  
+  const attemptLoad = (ws: number[]): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      // Check if this specific weight set is already being loaded (or already exists)
+      const weightKey = ws.join(',')
+      const existingLink = document.querySelector(
+        `link[data-font="${normalizedFamily}"][data-weights="${weightKey}"]`
+      )
+      if (existingLink) {
+        resolve()
+        return
+      }
+
+      const weightStr = ws.join(';')
+      const fontUrl = `https://fonts.googleapis.com/css2?family=${normalizedFamily}:wght@${weightStr}&display=swap`
+
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = fontUrl
+      link.setAttribute('data-font', normalizedFamily)
+      link.setAttribute('data-weights', weightKey)
+
+      link.onload = () => resolve()
+      link.onerror = () => {
+        // Remove failed link to allow retries with different weights
+        link.remove()
+        reject(new Error(`Failed to load ${normalizedFamily} with weights ${ws.join(',')}`))
+      }
+
+      document.head.appendChild(link)
+    })
+  }
+
+  try {
+    // Try loading all requested weights first
+    await attemptLoad(uniqueWeights)
+  } catch (error) {
+    // If the combined request fails, try loading individually
+    // This handles fonts that don't support all requested weights
+    
+    // Fallback 1: Try the first weight in the original list (likely the most important one)
+    const primaryWeight = [uniqueWeights[0]]
+    
+    try {
+      await attemptLoad(primaryWeight)
+    } catch {
+      // Fallback 2: Try 400 if it's not the primary weight
+      if (primaryWeight[0] !== 400) {
+        try {
+          await attemptLoad([400])
+        } catch (finalError) {
+          throw finalError
+        }
+      } else {
+        throw new Error(`Failed to load font ${fontFamily} with any common weight.`)
+      }
     }
-
-    const weightStr = weights.join(';')
-    const fontUrl = `https://fonts.googleapis.com/css2?family=${fontFamily}:wght@${weightStr}&display=swap`
-
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = fontUrl
-    link.setAttribute('data-font', fontFamily)
-
-    link.onload = () => resolve()
-    link.onerror = () => reject(new Error(`Failed to load font: ${fontFamily}`))
-
-    document.head.appendChild(link)
-  })
+  }
 }
 
 /**

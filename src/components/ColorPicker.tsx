@@ -132,10 +132,6 @@ const COLOR_OPTIONS: ColorOption[] = [
 
 const SHADE_LABELS = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950']
 
-/**
- * Enhanced Color Picker Component
- * Supports both Tailwind color palette and native color picker
- */
 export const ColorPicker: React.FC<ColorPickerProps> = ({
   value,
   onChange,
@@ -148,16 +144,11 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({
     setShowPalette(false)
   }
 
-  const handleCustomColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(e.target.value)
-  }
-
   return (
     <div className="space-y-2">
       <label className="block text-sm text-gray-300">{label}</label>
 
       <div className="flex gap-2">
-        {/* Color Preview & Picker Button */}
         <button
           onClick={() => {
             setShowPalette(!showPalette)
@@ -169,28 +160,16 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({
         >
           <div className="absolute inset-0 border border-white/20" />
         </button>
-
-        {/* Custom Color Input */}
-        <input
-          type="color"
-          value={value}
-          onChange={handleCustomColorChange}
-          className="w-12 h-10 rounded cursor-pointer border border-neutral-700"
-          title="Custom color picker"
-        />
-
-        {/* Display Current Color */}
         <div className="flex-1 flex items-center">
           <input
             type="text"
             value={value}
             readOnly
-            className="w-full px-3 py-2 rounded bg-neutral-800 text-xs text-gray-300 border border-neutral-700 font-mono"
+            className="w-full px-3 py-2.5 rounded bg-neutral-800 text-xs text-gray-300 border border-neutral-700 font-mono"
           />
         </div>
       </div>
 
-      {/* Palette Modal */}
       {showPalette && (
         <div className="absolute inset-0 z-50" onClick={() => setShowPalette(false)}>
           <div
@@ -213,7 +192,6 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({
               </button>
             </div>
 
-            {/* Color Grid */}
             <div className="space-y-3">
               {COLOR_OPTIONS.map((option) => (
                 <div key={option.name}>
