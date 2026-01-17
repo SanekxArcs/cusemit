@@ -10,6 +10,8 @@ import { useSettingsStore } from '@/store/settings'
 import { DriftOffset, generateRandomDrift, prefersReducedMotion } from '@/lib/amoledSaver'
 import { loadGoogleFont, CURATED_FONTS } from '@/lib/fonts'
 import { usePWA } from '@/hooks/usePWA';
+import { InfoButton } from '@/components/InfoButton';
+import { InfoDialog } from '@/components/InfoDialog';
 
 export function App() {
   const { settings, loadSettings } = useSettingsStore();
@@ -17,6 +19,7 @@ export function App() {
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [time, setTime] = React.useState({ main: '', ampm: '' });
   const [showControls, setShowControls] = React.useState(true);
+  const [isInfoOpen, setIsInfoOpen] = React.useState(false);
   const hideTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [driftOffset, setDriftOffset] = React.useState<DriftOffset>({
     x: 0,
@@ -140,7 +143,7 @@ export function App() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [settings.enableAMOLEDSaver, reducedMotion, isSettingsOpen, formatTime]);
+  }, [settings.enableAMOLEDSaver, reducedMotion, isSettingsOpen, isInfoOpen, formatTime]);
 
   // Handle auto-hiding controls
   React.useEffect(() => {
@@ -154,7 +157,7 @@ export function App() {
       setShowControls(true);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       hideTimerRef.current = setTimeout(() => {
-        if (!isSettingsOpen) {
+        if (!isSettingsOpen && !isInfoOpen) {
           setShowControls(false);
         }
       }, 10000);
@@ -179,7 +182,7 @@ export function App() {
       window.removeEventListener('keydown', handleActivity);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
-  }, [settings.autoHideControls, isSettingsOpen]);
+  }, [settings.autoHideControls, isSettingsOpen, isInfoOpen]);
 
   const bgStyle: React.CSSProperties = React.useMemo(() => {
     if (settings.enableAMOLEDSaver) {
@@ -280,6 +283,11 @@ export function App() {
           onToggle={() => setIsSettingsOpen(!isSettingsOpen)}
           prefersReducedMotion={reducedMotion}
         />
+
+        <InfoButton
+          onOpen={() => setIsInfoOpen(true)}
+          prefersReducedMotion={reducedMotion}
+        />
       </div>
 
       {settings.enableAMOLEDSaver && settings.amoledSaverMode === 'mesh' && (
@@ -293,6 +301,11 @@ export function App() {
       <SettingsSheet
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+      />
+
+      <InfoDialog
+        isOpen={isInfoOpen}
+        onClose={() => setIsInfoOpen(false)}
       />
 
       <Toaster position="bottom-center" />
