@@ -1031,6 +1031,34 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                     </button>
                   </div>
 
+                  {settings.tabularNums && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="flex items-center justify-between pl-3 border-l-2 border-neutral-700 overflow-hidden"
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-sm text-gray-400">CSS Width Fallback</span>
+                        <span className="text-[10px] text-gray-500">For fonts without native tabular support</span>
+                      </div>
+                      <button
+                        onClick={() => updateSetting('tabularNumsFallback', !settings.tabularNumsFallback)}
+                        className={cn(
+                          "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                          settings.tabularNumsFallback ? "bg-blue-600" : "bg-neutral-700"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                            settings.tabularNumsFallback ? "translate-x-6" : "translate-x-1"
+                          )}
+                        />
+                      </button>
+                    </motion.div>
+                  )}
+
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-300">24-Hour Format</span>
                     <button

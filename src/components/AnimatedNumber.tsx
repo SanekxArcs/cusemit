@@ -7,6 +7,7 @@ interface AnimatedNumberProps {
   animationMode: 'slide-v' | 'slide-h' | 'fade' | 'zoom' | 'flip-v' | 'flip-h' | 'blur' | 'bounce' | 'rotate' | 'none'
   style?: React.CSSProperties
   tabularNums?: boolean
+  tabularNumsFallback?: boolean
 }
 
 export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
@@ -15,6 +16,7 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
   animationMode,
   style,
   tabularNums = true,
+  tabularNumsFallback = false,
 }) => {
   const previousValue = React.useRef<string>(value)
 
@@ -24,12 +26,16 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
 
   const isDigit = /^\d$/.test(value);
   const numericClass = tabularNums && isDigit ? 'tabular-nums' : 'proportional-nums';
+  const fallbackStyle: React.CSSProperties =
+    tabularNums && tabularNumsFallback && isDigit
+      ? { minWidth: '1ch', textAlign: 'center' }
+      : {};
 
   if (animationMode === 'none' || prefersReducedMotion) {
     return (
       <span
         className={`inline-block ${numericClass}`}
-        style={{ whiteSpace: 'pre', ...style }}
+        style={{ whiteSpace: 'pre', ...fallbackStyle, ...style }}
       >
         {value}
       </span>
@@ -114,6 +120,7 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
       style={{
         display: 'inline-block',
         whiteSpace: 'pre',
+        ...fallbackStyle,
         ...style
       }}
     >
