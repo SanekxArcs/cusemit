@@ -175,7 +175,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
           <motion.div
             className={cn(
               'fixed right-0 top-0 bottom-0 w-full sm:w-96 bg-neutral-900',
-              'border-l border-neutral-800 shadow-lg overflow-y-auto z-50',
+              'border-l border-neutral-800 shadow-lg z-50 flex flex-col',
               'transition-all duration-300',
               isDragging ? 'bg-black/10 backdrop-blur-0' : 'bg-neutral-900'
             )}
@@ -187,31 +187,34 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
             animate="visible"
             exit="exit"
           >
-            <div className="p-6 space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white">Settings</h2>
-                <button
-                  onClick={onClose}
-                  className={cn(
-                    'p-1 rounded hover:bg-neutral-800',
-                    'transition-colors focus:outline-none focus:ring-2 focus:ring-white/50'
-                  )}
-                  aria-label="Close settings"
+            {/* Sticky header */}
+            <div className="sticky top-0 z-10 bg-neutral-900 border-b border-neutral-800 px-6 py-4 flex items-center justify-between shrink-0">
+              <h2 className="text-xl font-semibold text-white">Settings</h2>
+              <button
+                onClick={onClose}
+                className={cn(
+                  'p-1 rounded hover:bg-neutral-800',
+                  'transition-colors focus:outline-none focus:ring-2 focus:ring-white/50'
+                )}
+                aria-label="Close settings"
+              >
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
                 >
-                  <svg
-                    className="w-5 h-5 text-white"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-              </div>
+                  <path
+                    fillRule="evenodd"
+                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+            </div>
 
+            {/* Scrollable content */}
+            <div className="overflow-y-auto flex-1">
+            <div className="p-6 space-y-6">
               <Section title="AMOLED/OLED Saver">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -1008,6 +1011,55 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                   )}
 
                   <div className="flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-sm text-gray-300">Tabular Numbers</span>
+                      <span className="text-[10px] text-gray-500">Uniform-width digits</span>
+                    </div>
+                    <button
+                      onClick={() => updateSetting('tabularNums', !settings.tabularNums)}
+                      className={cn(
+                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                        settings.tabularNums ? "bg-blue-600" : "bg-neutral-700"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                          settings.tabularNums ? "translate-x-6" : "translate-x-1"
+                        )}
+                      />
+                    </button>
+                  </div>
+
+                  {settings.tabularNums && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="flex items-center justify-between pl-3 border-l-2 border-neutral-700 overflow-hidden"
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-sm text-gray-400">CSS Width Fallback</span>
+                        <span className="text-[10px] text-gray-500">For fonts without native tabular support</span>
+                      </div>
+                      <button
+                        onClick={() => updateSetting('tabularNumsFallback', !settings.tabularNumsFallback)}
+                        className={cn(
+                          "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                          settings.tabularNumsFallback ? "bg-blue-600" : "bg-neutral-700"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                            settings.tabularNumsFallback ? "translate-x-6" : "translate-x-1"
+                          )}
+                        />
+                      </button>
+                    </motion.div>
+                  )}
+
+                  <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-300">24-Hour Format</span>
                     <button
                       onClick={() => updateSetting('clockFormat', settings.clockFormat === '24h' ? '12h' : '24h')}
@@ -1314,6 +1366,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
               >
                 Reset to Defaults
               </button>
+            </div>
             </div>
           </motion.div>
         </>

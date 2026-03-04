@@ -1,4 +1,5 @@
 import React from 'react'
+import ReactDOM from 'react-dom'
 import { cn } from '@/lib/cn'
 
 interface ColorPickerProps {
@@ -170,8 +171,8 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({
         </div>
       </div>
 
-      {showPalette && (
-        <div className="absolute inset-0 z-50" onClick={() => setShowPalette(false)}>
+      {showPalette && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[9999]" onClick={() => setShowPalette(false)}>
           <div
             className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-neutral-900 border border-neutral-700 rounded-lg p-4 max-h-[90vh] overflow-y-auto max-w-2xl w-full mx-4"
             onClick={(e) => e.stopPropagation()}
@@ -225,7 +226,8 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({
               Done
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

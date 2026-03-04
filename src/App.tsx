@@ -265,6 +265,8 @@ export function App() {
             showBottomText={settings.showBottomText}
             showSeconds={settings.showSeconds}
             pulseColon={settings.pulseColon}
+            tabularNums={settings.tabularNums}
+            tabularNumsFallback={settings.tabularNumsFallback}
           />
         )}
       </div>
