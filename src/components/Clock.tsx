@@ -32,6 +32,7 @@ interface ClockProps {
   showBottomText?: boolean
   showSeconds?: boolean
   pulseColon?: boolean
+  tabularNums?: boolean
 }
 
 export const Clock: React.FC<ClockProps> = ({
@@ -61,6 +62,7 @@ export const Clock: React.FC<ClockProps> = ({
   showBottomText,
   showSeconds,
   pulseColon,
+  tabularNums = true,
 }) => {
   const fontFamilyCSS = getFontFamilyCSS(fontFamily)
   const [fontSize, setFontSize] = React.useState(100)
@@ -176,6 +178,7 @@ export const Clock: React.FC<ClockProps> = ({
                     prefersReducedMotion={prefersReducedMotion}
                     animationMode={animationMode}
                     style={{ ...textStyle, opacity: 0.6 }}
+                    tabularNums={tabularNums}
                   />
                 ))}
               </div>
@@ -197,6 +200,7 @@ export const Clock: React.FC<ClockProps> = ({
                   prefersReducedMotion={prefersReducedMotion}
                   animationMode={animationMode}
                   style={textStyle}
+                  tabularNums={tabularNums}
                 />
               );
 
@@ -239,6 +243,7 @@ export const Clock: React.FC<ClockProps> = ({
                     prefersReducedMotion={prefersReducedMotion}
                     animationMode={animationMode}
                     style={{ ...textStyle, opacity: 0.6 }}
+                    tabularNums={tabularNums}
                   />
                 ))}
               </div>
@@ -267,6 +272,7 @@ export const Clock: React.FC<ClockProps> = ({
                     prefersReducedMotion={prefersReducedMotion}
                     animationMode={animationMode}
                     style={{ ...textStyle, opacity: 0.8 }}
+                    tabularNums={tabularNums}
                   />
                 ))}
               </div>

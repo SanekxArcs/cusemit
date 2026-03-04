@@ -6,6 +6,7 @@ interface AnimatedNumberProps {
   prefersReducedMotion: boolean
   animationMode: 'slide-v' | 'slide-h' | 'fade' | 'zoom' | 'flip-v' | 'flip-h' | 'blur' | 'bounce' | 'rotate' | 'none'
   style?: React.CSSProperties
+  tabularNums?: boolean
 }
 
 export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
@@ -13,6 +14,7 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
   prefersReducedMotion,
   animationMode,
   style,
+  tabularNums = true,
 }) => {
   const previousValue = React.useRef<string>(value)
 
@@ -21,9 +23,17 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
   }, [value])
 
   const isDigit = /^\d$/.test(value);
+  const numericClass = tabularNums && isDigit ? 'tabular-nums' : 'proportional-nums';
 
   if (animationMode === 'none' || prefersReducedMotion) {
-    return <span className={`inline-block ${isDigit ? 'tabular-nums' : 'proportional-nums'}`} style={style}>{value}</span>;
+    return (
+      <span
+        className={`inline-block ${numericClass}`}
+        style={{ whiteSpace: 'pre', ...style }}
+      >
+        {value}
+      </span>
+    );
   }
 
   const getVariants = () => {
@@ -100,9 +110,10 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
       animate={variants.animate}
       exit={variants.exit}
       transition={transition}
-      className={`inline-block ${isDigit ? 'tabular-nums' : 'proportional-nums'}`}
+      className={`inline-block ${numericClass}`}
       style={{
         display: 'inline-block',
+        whiteSpace: 'pre',
         ...style
       }}
     >

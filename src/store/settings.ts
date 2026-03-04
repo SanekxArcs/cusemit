@@ -58,6 +58,9 @@ export interface ClockSettings {
   bottomText: string;
   showTopText: boolean;
   showBottomText: boolean;
+
+  // Typography
+  tabularNums: boolean;
 }
 
 const DEFAULT_SETTINGS: ClockSettings = {
@@ -98,6 +101,7 @@ const DEFAULT_SETTINGS: ClockSettings = {
   bottomText: '',
   showTopText: false,
   showBottomText: false,
+  tabularNums: true,
   pulseColon: true,
   savedFonts: [],
   hiddenCuratedFonts: [],
