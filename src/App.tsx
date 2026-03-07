@@ -4,8 +4,9 @@ import { Clock } from '@/components/Clock'
 import { cn } from '@/lib/cn'
 import { GearButton } from '@/components/GearButton'
 import { SettingsSheet } from '@/components/SettingsSheet'
+import { TimerSheet } from '@/components/TimerSheet'
+import { TimerButton } from '@/components/TimerButton'
 import { AmoledMesh } from '@/components/AmoledMesh'
-import { RefreshButton } from '@/components/RefreshButton'
 import { useSettingsStore } from '@/store/settings'
 import { DriftOffset, generateRandomDrift, prefersReducedMotion } from '@/lib/amoledSaver'
 import { loadGoogleFont, CURATED_FONTS } from '@/lib/fonts'
@@ -19,7 +20,7 @@ import { FloatingClock } from '@/components/FloatingClock'
 export function App() {
   const { settings, loadSettings, updateMultiple, updateTimer } = useSettingsStore()
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false)
-  const [refreshKey, setRefreshKey] = React.useState(0)
+  const [isTimerOpen, setIsTimerOpen] = React.useState(false)
   const [time, setTime] = React.useState({ main: '', ampm: '' })
   const [showControls, setShowControls] = React.useState(true)
   const [isInfoOpen, setIsInfoOpen] = React.useState(false)
@@ -135,7 +136,7 @@ export function App() {
       setShowControls(true)
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
       hideTimerRef.current = setTimeout(() => {
-        if (!isSettingsOpen && !isInfoOpen) setShowControls(false)
+        if (!isSettingsOpen && !isInfoOpen && !isTimerOpen) setShowControls(false)
       }, 10000)
     }
     resetTimer()
@@ -150,7 +151,7 @@ export function App() {
       window.removeEventListener('keydown', resetTimer)
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
     }
-  }, [settings.autoHideControls, isSettingsOpen, isInfoOpen])
+  }, [settings.autoHideControls, isSettingsOpen, isInfoOpen, isTimerOpen])
 
   const bgStyle: React.CSSProperties = React.useMemo(() => {
     if (settings.enableAMOLEDSaver) return { backgroundColor: '#000000' }
@@ -244,7 +245,7 @@ export function App() {
               driftOffset={driftApplied}
               prefersReducedMotion={reducedMotion}
               fontWeight={settings.fontWeight}
-              refreshKey={refreshKey}
+              refreshKey={0}
               animationMode={settings.animationMode}
               topText={effectiveTopText}
               bottomText={effectiveBottomText}
@@ -271,7 +272,7 @@ export function App() {
           showBottomText={effectiveShowBottomText}
           driftOffset={driftApplied}
           prefersReducedMotion={reducedMotion}
-          refreshKey={refreshKey}
+          refreshKey={0}
           onTransformChange={(x, y, s, r) =>
             updateMultiple({ clockFloatX: x, clockFloatY: y, clockFloatScale: s, clockFloatRotation: r })
           }
@@ -312,9 +313,10 @@ export function App() {
           !showControls ? 'opacity-0' : 'opacity-100',
         )}
       >
-        <RefreshButton
-          onRefresh={() => setRefreshKey((prev) => prev + 1)}
+        <TimerButton
+          onToggle={() => setIsTimerOpen(!isTimerOpen)}
           prefersReducedMotion={reducedMotion}
+          hasActiveTimers={settings.timers.some((t) => timerControls[t.id]?.isRunning)}
         />
         <GearButton
           isOpen={isSettingsOpen}
@@ -338,6 +340,11 @@ export function App() {
       <SettingsSheet
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+      />
+
+      <TimerSheet
+        isOpen={isTimerOpen}
+        onClose={() => setIsTimerOpen(false)}
         timerControls={timerControls}
       />
 

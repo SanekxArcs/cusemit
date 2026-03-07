@@ -2,6 +2,7 @@ import React from 'react'
 import { motion, useMotionValue } from 'framer-motion'
 import { cn } from '@/lib/cn'
 import { formatMs } from '@/hooks/useTimerArray'
+import { getFontFamilyCSS } from '@/lib/fonts'
 import type { TimerConfig } from '@/store/settings'
 
 // ── Snap helper ───────────────────────────────────────────────────────────────
@@ -195,7 +196,7 @@ export const FloatingTimerWidget: React.FC<FloatingTimerProps> = ({
     }
   }
 
-  const fontFamily = config.useClockFont ? clockFontFamily : 'Inter, sans-serif'
+  const fontFamily = config.useClockFont ? getFontFamilyCSS(clockFontFamily) : 'Inter, sans-serif'
   const fontWeight = config.useClockFont ? clockFontWeight : 400
 
   return (
