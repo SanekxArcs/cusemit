@@ -12,9 +12,11 @@ import { loadGoogleFont, CURATED_FONTS } from '@/lib/fonts'
 import { usePWA } from '@/hooks/usePWA';
 import { InfoButton } from '@/components/InfoButton';
 import { InfoDialog } from '@/components/InfoDialog';
+import { useTimer, formatMs } from '@/hooks/useTimer';
+import { TimerWidget } from '@/components/TimerWidget';
 
 export function App() {
-  const { settings, loadSettings } = useSettingsStore();
+  const { settings, loadSettings, updateMultiple } = useSettingsStore();
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [time, setTime] = React.useState({ main: '', ampm: '' });
@@ -33,6 +35,23 @@ export function App() {
   );
   const reducedMotion = prefersReducedMotion();
   usePWA();
+
+  // ── Timer ────────────────────────────────────────────────────────────────────
+  const timerInitialMs = React.useMemo(() => {
+    if (settings.timerInputMode === 'datetime' && settings.timerTargetDatetime) {
+      const ms = new Date(settings.timerTargetDatetime).getTime() - Date.now();
+      return Math.max(0, ms);
+    }
+    return (settings.timerHours * 3600 + settings.timerMinutes * 60) * 1000;
+  }, [
+    settings.timerInputMode,
+    settings.timerTargetDatetime,
+    settings.timerHours,
+    settings.timerMinutes,
+  ]);
+
+  const timer = useTimer(timerInitialMs);
+  // ─────────────────────────────────────────────────────────────────────────────
 
   React.useEffect(() => {
     loadSettings();
@@ -259,10 +278,26 @@ export function App() {
             fontWeight={settings.fontWeight}
             refreshKey={refreshKey}
             animationMode={settings.animationMode}
-            topText={settings.topText}
-            bottomText={settings.bottomText}
-            showTopText={settings.showTopText}
-            showBottomText={settings.showBottomText}
+            topText={
+              settings.timerEnabled && settings.timerDisplayPosition === 'top'
+                ? formatMs(timer.remainingMs)
+                : settings.topText
+            }
+            bottomText={
+              settings.timerEnabled && settings.timerDisplayPosition === 'bottom'
+                ? formatMs(timer.remainingMs)
+                : settings.bottomText
+            }
+            showTopText={
+              settings.timerEnabled && settings.timerDisplayPosition === 'top'
+                ? true
+                : settings.showTopText
+            }
+            showBottomText={
+              settings.timerEnabled && settings.timerDisplayPosition === 'bottom'
+                ? true
+                : settings.showBottomText
+            }
             showSeconds={settings.showSeconds}
             pulseColon={settings.pulseColon}
             tabularNums={settings.tabularNums}
@@ -270,6 +305,57 @@ export function App() {
           />
         )}
       </div>
+
+      {/* Timer inline controls (top/bottom mode) shown when timer is enabled and not floating */}
+      {settings.timerEnabled && settings.timerDisplayPosition !== 'floating' && (
+        <div
+          className={cn(
+            'absolute left-1/2 -translate-x-1/2 z-40 pointer-events-auto',
+            settings.timerDisplayPosition === 'top' ? 'top-2' : 'bottom-8',
+          )}
+        >
+          <TimerWidget
+            remainingMs={timer.remainingMs}
+            isRunning={timer.isRunning}
+            isExpired={timer.isExpired}
+            position={settings.timerDisplayPosition}
+            floatX={settings.timerFloatX}
+            floatY={settings.timerFloatY}
+            floatScale={settings.timerFloatScale}
+            floatRotation={settings.timerFloatRotation}
+            onPlay={timer.play}
+            onPause={timer.pause}
+            onReset={timer.reset}
+            color={settings.clockColor}
+          />
+        </div>
+      )}
+
+      {/* Floating timer (beta) */}
+      {settings.timerEnabled && settings.timerDisplayPosition === 'floating' && (
+        <TimerWidget
+          remainingMs={timer.remainingMs}
+          isRunning={timer.isRunning}
+          isExpired={timer.isExpired}
+          position="floating"
+          floatX={settings.timerFloatX}
+          floatY={settings.timerFloatY}
+          floatScale={settings.timerFloatScale}
+          floatRotation={settings.timerFloatRotation}
+          onPlay={timer.play}
+          onPause={timer.pause}
+          onReset={timer.reset}
+          onTransformChange={(x, y, scale, rotation) =>
+            updateMultiple({
+              timerFloatX: x,
+              timerFloatY: y,
+              timerFloatScale: scale,
+              timerFloatRotation: rotation,
+            })
+          }
+          color={settings.clockColor}
+        />
+      )}
 
       <div
         className={cn(

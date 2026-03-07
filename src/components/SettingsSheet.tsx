@@ -1281,6 +1281,154 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                 </div>
               </Section>
 
+              <Section title="⏱ Timer">
+                <div className="space-y-4">
+                  {/* Enable toggle */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-300">Enable Timer</span>
+                    <button
+                      onClick={() => updateSetting('timerEnabled', !settings.timerEnabled)}
+                      className={cn(
+                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                        settings.timerEnabled ? "bg-blue-600" : "bg-neutral-700"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                          settings.timerEnabled ? "translate-x-6" : "translate-x-1"
+                        )}
+                      />
+                    </button>
+                  </div>
+
+                  {settings.timerEnabled && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-4"
+                    >
+                      {/* Input mode selector */}
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-2">Set timer by</label>
+                        <div className="flex gap-2">
+                          {(['duration', 'datetime'] as const).map((mode) => (
+                            <button
+                              key={mode}
+                              onClick={() => updateSetting('timerInputMode', mode)}
+                              className={cn(
+                                "flex-1 py-1.5 rounded text-xs font-medium transition-all",
+                                settings.timerInputMode === mode
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-neutral-800 text-gray-400 hover:text-gray-200"
+                              )}
+                            >
+                              {mode === 'duration' ? 'Duration (HH:MM)' : 'Date & Time'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Duration input */}
+                      {settings.timerInputMode === 'duration' && (
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-2">
+                            Duration
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                              <input
+                                type="number"
+                                min="0"
+                                max="99"
+                                value={settings.timerHours}
+                                onChange={(e) =>
+                                  updateSetting('timerHours', Math.max(0, Math.min(99, parseInt(e.target.value) || 0)))
+                                }
+                                className="w-full px-3 py-2 rounded bg-neutral-800 text-white text-sm text-center border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <p className="text-[10px] text-center text-gray-500 mt-1">hours</p>
+                            </div>
+                            <span className="text-gray-400 text-lg font-bold pb-4">:</span>
+                            <div className="flex-1">
+                              <input
+                                type="number"
+                                min="0"
+                                max="59"
+                                value={settings.timerMinutes}
+                                onChange={(e) =>
+                                  updateSetting('timerMinutes', Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))
+                                }
+                                className="w-full px-3 py-2 rounded bg-neutral-800 text-white text-sm text-center border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <p className="text-[10px] text-center text-gray-500 mt-1">minutes</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Datetime input */}
+                      {settings.timerInputMode === 'datetime' && (
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-2">
+                            Target date &amp; time
+                          </label>
+                          <input
+                            type="datetime-local"
+                            value={settings.timerTargetDatetime}
+                            onChange={(e) => updateSetting('timerTargetDatetime', e.target.value)}
+                            className="w-full px-3 py-2 rounded bg-neutral-800 text-white text-sm border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          {settings.timerTargetDatetime && (() => {
+                            const ms = new Date(settings.timerTargetDatetime).getTime() - Date.now()
+                            if (ms <= 0) {
+                              return (
+                                <p className="text-[10px] text-red-400 mt-1">
+                                  ⚠ Selected time is in the past.
+                                </p>
+                              )
+                            }
+                            const h = Math.floor(ms / 3600000)
+                            const m = Math.floor((ms % 3600000) / 60000)
+                            return (
+                              <p className="text-[10px] text-gray-400 mt-1">
+                                ≈ {h}h {m}m from now
+                              </p>
+                            )
+                          })()}
+                        </div>
+                      )}
+
+                      {/* Display position */}
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-2">Show timer as</label>
+                        <div className="flex gap-2">
+                          {(['top', 'bottom', 'floating'] as const).map((pos) => (
+                            <button
+                              key={pos}
+                              onClick={() => updateSetting('timerDisplayPosition', pos)}
+                              className={cn(
+                                "flex-1 py-1.5 rounded text-xs font-medium transition-all capitalize",
+                                settings.timerDisplayPosition === pos
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-neutral-800 text-gray-400 hover:text-gray-200"
+                              )}
+                            >
+                              {pos === 'floating' ? '🧪 Float' : pos}
+                            </button>
+                          ))}
+                        </div>
+                        {settings.timerDisplayPosition === 'floating' && (
+                          <p className="text-[10px] text-blue-400/70 mt-2">
+                            Beta: drag the widget anywhere on screen. Pinch with two fingers to zoom or rotate.
+                          </p>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              </Section>
+
               <Section title="Position & Scale">
                 <div className="space-y-4">
                   <div>

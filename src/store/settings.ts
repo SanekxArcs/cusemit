@@ -62,6 +62,18 @@ export interface ClockSettings {
   // Typography
   tabularNums: boolean;
   tabularNumsFallback: boolean;
+
+  // Timer
+  timerEnabled: boolean;
+  timerInputMode: 'duration' | 'datetime';
+  timerHours: number;
+  timerMinutes: number;
+  timerTargetDatetime: string;
+  timerDisplayPosition: 'top' | 'bottom' | 'floating';
+  timerFloatX: number;
+  timerFloatY: number;
+  timerFloatScale: number;
+  timerFloatRotation: number;
 }
 
 const DEFAULT_SETTINGS: ClockSettings = {
@@ -107,6 +119,16 @@ const DEFAULT_SETTINGS: ClockSettings = {
   pulseColon: true,
   savedFonts: [],
   hiddenCuratedFonts: [],
+  timerEnabled: false,
+  timerInputMode: 'duration',
+  timerHours: 0,
+  timerMinutes: 5,
+  timerTargetDatetime: '',
+  timerDisplayPosition: 'bottom',
+  timerFloatX: 50,
+  timerFloatY: 80,
+  timerFloatScale: 1,
+  timerFloatRotation: 0,
 };
 
 const normalizeOrientation = (value: unknown): Orientation => {
