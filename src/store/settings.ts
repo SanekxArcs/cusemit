@@ -4,6 +4,43 @@ export type BackgroundMode = 'solid' | 'gradient' | 'image'
 export type ClockFormat = '24h' | '12h'
 export type Orientation = 'default' | 'rotate90' | 'rotate270' | 'rotate180'
 
+// ── Timer ─────────────────────────────────────────────────────────────────────
+
+export interface TimerConfig {
+  id: string
+  label: string
+  inputMode: 'duration' | 'datetime'
+  hours: number
+  minutes: number
+  targetDatetime: string
+  displayPosition: 'top' | 'bottom' | 'floating'
+  floatX: number
+  floatY: number
+  floatScale: number
+  floatRotation: number
+  useClockFont: boolean
+}
+
+function makeTimerConfig(partial?: Partial<Omit<TimerConfig, 'id'>>): TimerConfig {
+  return {
+    id: `timer-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    label: 'Timer',
+    inputMode: 'duration',
+    hours: 0,
+    minutes: 5,
+    targetDatetime: '',
+    displayPosition: 'bottom',
+    floatX: 50,
+    floatY: 80,
+    floatScale: 1,
+    floatRotation: 0,
+    useClockFont: false,
+    ...partial,
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface ClockSettings {
   // Background
   backgroundMode: BackgroundMode;
@@ -30,10 +67,17 @@ export interface ClockSettings {
   customFontFamily: string;
   fontWeight: number;
 
-  // Scale & Position
+  // Scale & Position (used when clockFloating is false)
   scale: number;
   offsetX: number;
   offsetY: number;
+
+  // Floating Clock
+  clockFloating: boolean;
+  clockFloatX: number;
+  clockFloatY: number;
+  clockFloatScale: number;
+  clockFloatRotation: number;
 
   // Display options
   showSeconds: boolean;
@@ -62,6 +106,9 @@ export interface ClockSettings {
   // Typography
   tabularNums: boolean;
   tabularNumsFallback: boolean;
+
+  // Timers (list)
+  timers: TimerConfig[];
 }
 
 const DEFAULT_SETTINGS: ClockSettings = {
@@ -89,6 +136,11 @@ const DEFAULT_SETTINGS: ClockSettings = {
   scale: 1,
   offsetX: 0,
   offsetY: 0,
+  clockFloating: false,
+  clockFloatX: 50,
+  clockFloatY: 50,
+  clockFloatScale: 1,
+  clockFloatRotation: 0,
   showSeconds: false,
   clockFormat: '24h',
   orientation: 'default',
@@ -107,6 +159,7 @@ const DEFAULT_SETTINGS: ClockSettings = {
   pulseColon: true,
   savedFonts: [],
   hiddenCuratedFonts: [],
+  timers: [],
 };
 
 const normalizeOrientation = (value: unknown): Orientation => {
@@ -143,6 +196,10 @@ interface SettingsStore {
   removeSavedFont: (font: string) => void
   hideCuratedFont: (fontValue: string) => void
   resetHiddenFonts: () => void
+  // Timer CRUD
+  addTimer: (partial?: Partial<Omit<TimerConfig, 'id'>>) => void
+  removeTimer: (id: string) => void
+  updateTimer: (id: string, updates: Partial<TimerConfig>) => void
 }
 
 const STORAGE_KEY = 'app.clock.settings.v1'
@@ -184,10 +241,30 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     if (stored) {
       try {
         const parsed = JSON.parse(stored)
+
+        // Migration: convert old single-timer fields to timers array
+        let migratedTimers: TimerConfig[] = parsed.timers ?? []
+        if (!parsed.timers && parsed.timerEnabled) {
+          migratedTimers = [makeTimerConfig({
+            label: 'Timer',
+            inputMode: parsed.timerInputMode ?? 'duration',
+            hours: parsed.timerHours ?? 0,
+            minutes: parsed.timerMinutes ?? 5,
+            targetDatetime: parsed.timerTargetDatetime ?? '',
+            displayPosition: parsed.timerDisplayPosition ?? 'bottom',
+            floatX: parsed.timerFloatX ?? 50,
+            floatY: parsed.timerFloatY ?? 80,
+            floatScale: parsed.timerFloatScale ?? 1,
+            floatRotation: parsed.timerFloatRotation ?? 0,
+            useClockFont: false,
+          })]
+        }
+
         set({
           settings: {
             ...DEFAULT_SETTINGS,
             ...parsed,
+            timers: migratedTimers,
             orientation: normalizeOrientation(parsed.orientation),
           },
         })
@@ -235,5 +312,31 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       settings: { ...state.settings, hiddenCuratedFonts: [] },
     }));
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...settings, hiddenCuratedFonts: [] }));
+  },
+
+  addTimer: (partial) => {
+    const { settings } = get()
+    const newTimer = makeTimerConfig(partial)
+    const newTimers = [...settings.timers, newTimer]
+    set((state) => ({ settings: { ...state.settings, timers: newTimers } }))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...get().settings, timers: newTimers }))
+  },
+
+  removeTimer: (id) => {
+    const { settings } = get()
+    const newTimers = settings.timers.filter((t) => t.id !== id)
+    set((state) => ({ settings: { ...state.settings, timers: newTimers } }))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...get().settings, timers: newTimers }))
+  },
+
+  updateTimer: (id, updates) => {
+    const { settings } = get()
+    const newTimers = settings.timers.map((t) => t.id === id ? { ...t, ...updates } : t)
+    set((state) => ({ settings: { ...state.settings, timers: newTimers } }))
+    // Debounced write: updateTimer is called on every keystroke in label/duration inputs,
+    // so we defer the localStorage write to avoid excessive writes during rapid changes.
+    setTimeout(() => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(get().settings))
+    }, 300)
   },
 }))

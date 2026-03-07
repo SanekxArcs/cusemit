@@ -5,7 +5,7 @@ import { cn } from '@/lib/cn'
 import { useSettingsStore } from '@/store/settings'
 import { CURATED_FONTS, loadGoogleFont, loadAllCuratedFonts } from '@/lib/fonts'
 import { prefersReducedMotion } from '@/lib/amoledSaver'
-import { ColorPicker } from '@/components/ColorPicker';
+import { ColorPicker } from '@/components/ColorPicker'
 
 interface SettingsSheetProps {
   isOpen: boolean
@@ -114,7 +114,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
         setCustomFont(fontFamily)
       }
     } catch (error) {
-      toast.error(`Failed to load font: ${fontFamily}`)
+      toast.error(`Failed to load font: ${fontFamily}`, { id: 'font-load-error' })
     }
   }
 
@@ -129,7 +129,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
           fontFamily: value
         })
       } catch (error) {
-        toast.error(`Failed to load custom font: ${value}`)
+        toast.error(`Failed to load custom font: ${value}`, { id: 'custom-font-error' })
       }
     }
   }
@@ -140,7 +140,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
     // Find the label for the default font (Inter is the default in the store)
     const defaultFont = CURATED_FONTS.find(f => f.value === 'Inter')
     setFontSearch(defaultFont ? defaultFont.label : 'Inter')
-    toast.success('Settings reset to defaults')
+    toast.success('Settings reset to defaults', { id: 'settings-reset' })
   }
 
   const sheetVariants = {
@@ -458,7 +458,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                                 const reader = new FileReader();
                                 reader.onloadend = () => {
                                   updateSetting('backgroundImage', reader.result as string);
-                                  toast.success('Image uploaded successfully');
+                                  toast.success('Image uploaded successfully', { id: 'image-upload' });
                                 };
                                 reader.readAsDataURL(file);
                               }
@@ -791,7 +791,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           removeSavedFont(font.value);
-                                          toast.info(`${font.label} removed from your list`);
+                                          toast.info(`${font.label} removed from your list`, { id: 'font-removed' });
                                         }}
                                         className="p-1 text-gray-500 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                                         title="Remove from my fonts"
@@ -805,7 +805,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           hideCuratedFont(font.value);
-                                          toast.info(`${font.label} hidden from list`);
+                                          toast.info(`${font.label} hidden from list`, { id: 'font-hidden' });
                                         }}
                                         className="p-1 text-gray-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
                                         title="Hide from list"
@@ -836,7 +836,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                             <button
                               onClick={() => {
                                 resetHiddenFonts();
-                                toast.success("Standard fonts restored");
+                                toast.success("Standard fonts restored", { id: "fonts-restored" });
                               }}
                               className="w-full py-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/5 rounded border border-blue-500/20"
                             >
@@ -897,7 +897,7 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
                             <button
                               onClick={() => {
                                 addSavedFont(customFont.trim());
-                                toast.success(`${customFont.trim()} saved to your fonts`);
+                                toast.success(`${customFont.trim()} saved to your fonts`, { id: 'font-saved' });
                               }}
                               className="p-1 text-gray-500 hover:text-blue-500 transition-colors"
                               title="Save font to my list"
@@ -1283,74 +1283,105 @@ export const SettingsSheet: React.FC<SettingsSheetProps> = ({
 
               <Section title="Position & Scale">
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm text-gray-300 mb-2 proportional-nums">
-                      Scale: {(settings.scale * 100).toFixed(0)}%
-                    </label>
-                    <input
-                      type="range"
-                      min="0.1"
-                      max="3"
-                      step="0.01"
-                      value={settings.scale}
-                      onPointerDown={() => setIsDragging(true)}
-                      onPointerUp={() => setIsDragging(false)}
-                      onPointerCancel={() => setIsDragging(false)}
-                      onChange={(e) =>
-                        updateSetting('scale', parseFloat(e.target.value))
-                      }
-                      className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-300 mb-2 proportional-nums">
-                      Horizontal Position: {settings.offsetX.toFixed(0)}%
-                    </label>
-                    <input
-                      type="range"
-                      min="-100"
-                      max="100"
-                      step="1"
-                      value={settings.offsetX}
-                      onPointerDown={() => setIsDragging(true)}
-                      onPointerUp={() => setIsDragging(false)}
-                      onPointerCancel={() => setIsDragging(false)}
-                      onChange={(e) =>
-                        updateSetting('offsetX', parseFloat(e.target.value))
-                      }
-                      className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-300 mb-2 proportional-nums">
-                      Vertical Position: {settings.offsetY.toFixed(0)}%
-                    </label>
-                    <input
-                      type="range"
-                      min="-100"
-                      max="100"
-                      step="1"
-                      value={settings.offsetY}
-                      onPointerDown={() => setIsDragging(true)}
-                      onPointerUp={() => setIsDragging(false)}
-                      onPointerCancel={() => setIsDragging(false)}
-                      onChange={(e) =>
-                        updateSetting('offsetY', parseFloat(e.target.value))
-                      }
-                      className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                    />
-                  </div>
-
-                  <div className="pt-2">
+                  {/* Floating Clock toggle */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-sm text-gray-300">Floating Clock</span>
+                      <p className="text-[10px] text-gray-500 mt-0.5">Drag &amp; pinch-zoom on screen</p>
+                    </div>
                     <button
-                      onClick={() => updateMultiple({ scale: 1, offsetX: 0, offsetY: 0 })}
-                      className="w-full py-2 rounded text-xs font-medium bg-neutral-800 border border-neutral-700 text-gray-400 hover:border-neutral-600 hover:text-gray-200 transition-all"
+                      onClick={() => updateSetting('clockFloating', !settings.clockFloating)}
+                      className={cn(
+                        'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none',
+                        settings.clockFloating ? 'bg-blue-600' : 'bg-neutral-700',
+                      )}
                     >
-                      Reset Position & Scale
+                      <span
+                        className={cn(
+                          'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                          settings.clockFloating ? 'translate-x-6' : 'translate-x-1',
+                        )}
+                      />
                     </button>
                   </div>
+
+                  {/* Position & scale sliders – hidden when floating */}
+                  {!settings.clockFloating && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-4"
+                    >
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-2 proportional-nums">
+                          Scale: {(settings.scale * 100).toFixed(0)}%
+                        </label>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="3"
+                          step="0.01"
+                          value={settings.scale}
+                          onPointerDown={() => setIsDragging(true)}
+                          onPointerUp={() => setIsDragging(false)}
+                          onPointerCancel={() => setIsDragging(false)}
+                          onChange={(e) => updateSetting('scale', parseFloat(e.target.value))}
+                          className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-2 proportional-nums">
+                          Horizontal Position: {settings.offsetX.toFixed(0)}%
+                        </label>
+                        <input
+                          type="range"
+                          min="-100"
+                          max="100"
+                          step="1"
+                          value={settings.offsetX}
+                          onPointerDown={() => setIsDragging(true)}
+                          onPointerUp={() => setIsDragging(false)}
+                          onPointerCancel={() => setIsDragging(false)}
+                          onChange={(e) => updateSetting('offsetX', parseFloat(e.target.value))}
+                          className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-2 proportional-nums">
+                          Vertical Position: {settings.offsetY.toFixed(0)}%
+                        </label>
+                        <input
+                          type="range"
+                          min="-100"
+                          max="100"
+                          step="1"
+                          value={settings.offsetY}
+                          onPointerDown={() => setIsDragging(true)}
+                          onPointerUp={() => setIsDragging(false)}
+                          onPointerCancel={() => setIsDragging(false)}
+                          onChange={(e) => updateSetting('offsetY', parseFloat(e.target.value))}
+                          className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                      </div>
+
+                      <div className="pt-2">
+                        <button
+                          onClick={() => updateMultiple({ scale: 1, offsetX: 0, offsetY: 0 })}
+                          className="w-full py-2 rounded text-xs font-medium bg-neutral-800 border border-neutral-700 text-gray-400 hover:border-neutral-600 hover:text-gray-200 transition-all"
+                        >
+                          Reset Position & Scale
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {settings.clockFloating && (
+                    <p className="text-[10px] text-blue-400/70">
+                      Drag the clock on screen to reposition. Pinch with two fingers to zoom or rotate. Rotation snaps to cardinal directions.
+                    </p>
+                  )}
                 </div>
               </Section>
 

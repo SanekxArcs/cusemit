@@ -4,84 +4,82 @@ import { Clock } from '@/components/Clock'
 import { cn } from '@/lib/cn'
 import { GearButton } from '@/components/GearButton'
 import { SettingsSheet } from '@/components/SettingsSheet'
+import { TimerSheet } from '@/components/TimerSheet'
+import { TimerButton } from '@/components/TimerButton'
 import { AmoledMesh } from '@/components/AmoledMesh'
-import { RefreshButton } from '@/components/RefreshButton'
 import { useSettingsStore } from '@/store/settings'
 import { DriftOffset, generateRandomDrift, prefersReducedMotion } from '@/lib/amoledSaver'
 import { loadGoogleFont, CURATED_FONTS } from '@/lib/fonts'
-import { usePWA } from '@/hooks/usePWA';
-import { InfoButton } from '@/components/InfoButton';
-import { InfoDialog } from '@/components/InfoDialog';
+import { usePWA } from '@/hooks/usePWA'
+import { InfoButton } from '@/components/InfoButton'
+import { InfoDialog } from '@/components/InfoDialog'
+import { useTimerArray, formatMs } from '@/hooks/useTimerArray'
+import { FloatingTimerWidget } from '@/components/TimerWidget'
+import { FloatingClock } from '@/components/FloatingClock'
 
 export function App() {
-  const { settings, loadSettings } = useSettingsStore();
-  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
-  const [refreshKey, setRefreshKey] = React.useState(0);
-  const [time, setTime] = React.useState({ main: '', ampm: '' });
-  const [showControls, setShowControls] = React.useState(true);
-  const [isInfoOpen, setIsInfoOpen] = React.useState(false);
-  const hideTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [driftOffset, setDriftOffset] = React.useState<DriftOffset>({
-    x: 0,
-    y: 0,
-  });
-  const driftIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(
-    null
-  );
-  const timeIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(
-    null
-  );
-  const reducedMotion = prefersReducedMotion();
-  usePWA();
+  const { settings, loadSettings, updateMultiple, updateTimer } = useSettingsStore()
+  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false)
+  const [isTimerOpen, setIsTimerOpen] = React.useState(false)
+  const [time, setTime] = React.useState({ main: '', ampm: '' })
+  const [showControls, setShowControls] = React.useState(true)
+  const [isInfoOpen, setIsInfoOpen] = React.useState(false)
+  const hideTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [driftOffset, setDriftOffset] = React.useState<DriftOffset>({ x: 0, y: 0 })
+  const driftIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
+  const timeIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
+  const reducedMotion = prefersReducedMotion()
+  usePWA()
+
+  // ── Timers ───────────────────────────────────────────────────────────────────
+  const timerControls = useTimerArray(settings.timers)
+  // ─────────────────────────────────────────────────────────────────────────────
 
   React.useEffect(() => {
-    loadSettings();
-  }, [loadSettings]);
+    loadSettings()
+  }, [loadSettings])
 
   const formatTime = React.useCallback(() => {
-    const now = new Date();
-    let hours = now.getHours();
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const now = new Date()
+    let hours = now.getHours()
+    const minutes = now.getMinutes().toString().padStart(2, '0')
+    const seconds = now.getSeconds().toString().padStart(2, '0')
 
     if (settings.clockFormat === '12h') {
-      const isPM = hours >= 12;
-      hours = hours % 12 || 12;
-      const hoursStr = hours.toString().padStart(2, '0');
-      const base = `${hoursStr}:${minutes}`;
-      const main = settings.showSeconds ? `${base}:${seconds}` : base;
-      return { main, ampm: isPM ? 'PM' : 'AM' };
+      const isPM = hours >= 12
+      hours = hours % 12 || 12
+      const hoursStr = hours.toString().padStart(2, '0')
+      const base = `${hoursStr}:${minutes}`
+      const main = settings.showSeconds ? `${base}:${seconds}` : base
+      return { main, ampm: isPM ? 'PM' : 'AM' }
     } else {
-      const hoursStr = hours.toString().padStart(2, '0');
-      const base = `${hoursStr}:${minutes}`;
-      const main = settings.showSeconds ? `${base}:${seconds}` : base;
-      return { main, ampm: '' };
+      const hoursStr = hours.toString().padStart(2, '0')
+      const base = `${hoursStr}:${minutes}`
+      const main = settings.showSeconds ? `${base}:${seconds}` : base
+      return { main, ampm: '' }
     }
-  }, [settings.clockFormat, settings.showSeconds]);
+  }, [settings.clockFormat, settings.showSeconds])
 
   React.useEffect(() => {
-    setTime(formatTime());
+    setTime(formatTime())
     const interval = setInterval(() => {
-      setTime(formatTime());
-    }, 500);
-
-    timeIntervalRef.current = interval;
-
+      setTime(formatTime())
+    }, 500)
+    timeIntervalRef.current = interval
     return () => {
-      if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
-    };
-  }, [formatTime]);
+      if (timeIntervalRef.current) clearInterval(timeIntervalRef.current)
+    }
+  }, [formatTime])
 
   React.useEffect(() => {
-    const fontFamily = settings.customFontFamily || settings.fontFamily;
-    const curated = CURATED_FONTS.find((f) => f.value === fontFamily);
-
+    const fontFamily = settings.customFontFamily || settings.fontFamily
+    const curated = CURATED_FONTS.find((f) => f.value === fontFamily)
     if (curated) {
-      loadGoogleFont(fontFamily, curated.weights).catch(() => { });
+      loadGoogleFont(fontFamily, curated.weights).catch(() => { })
     } else if (fontFamily) {
-      loadGoogleFont(fontFamily, [400, 700, settings.fontWeight]).catch(() => { });
+      loadGoogleFont(fontFamily, [400, 700, settings.fontWeight]).catch(() => { })
     }
-  }, [settings.fontFamily, settings.customFontFamily, settings.fontWeight]);
+  }, [settings.fontFamily, settings.customFontFamily, settings.fontWeight])
 
   const getRotationStyle = (): React.CSSProperties => {
     const rotationMap: Record<string, number> = {
@@ -89,113 +87,80 @@ export function App() {
       rotate90: 90,
       rotate180: 180,
       rotate270: 270,
-    };
-    const angle = rotationMap[settings.orientation] || 0;
-    return angle === 0 ? {} : { transform: `rotate(${angle}deg)` };
-  };
+    }
+    const angle = rotationMap[settings.orientation] || 0
+    return angle === 0 ? {} : { transform: `rotate(${angle}deg)` }
+  }
 
   React.useEffect(() => {
     if (!settings.enableAMOLEDSaver || reducedMotion || isSettingsOpen) {
-      if (driftIntervalRef.current) clearInterval(driftIntervalRef.current);
-      return;
+      if (driftIntervalRef.current) clearInterval(driftIntervalRef.current)
+      return
     }
-
     const driftInterval = setInterval(() => {
-      setDriftOffset(generateRandomDrift());
-    }, 60000); 
-
-    driftIntervalRef.current = driftInterval;
-
+      setDriftOffset(generateRandomDrift())
+    }, 60000)
+    driftIntervalRef.current = driftInterval
     return () => {
-      if (driftIntervalRef.current) clearInterval(driftIntervalRef.current);
-    };
-  }, [settings.enableAMOLEDSaver, reducedMotion, isSettingsOpen]);
+      if (driftIntervalRef.current) clearInterval(driftIntervalRef.current)
+    }
+  }, [settings.enableAMOLEDSaver, reducedMotion, isSettingsOpen])
 
   React.useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        if (driftIntervalRef.current) {
-          clearInterval(driftIntervalRef.current);
-          driftIntervalRef.current = null;
-        }
-        if (timeIntervalRef.current) {
-          clearInterval(timeIntervalRef.current);
-          timeIntervalRef.current = null;
-        }
+        if (driftIntervalRef.current) { clearInterval(driftIntervalRef.current); driftIntervalRef.current = null }
+        if (timeIntervalRef.current) { clearInterval(timeIntervalRef.current); timeIntervalRef.current = null }
       } else {
-        setTime(formatTime());
-
+        setTime(formatTime())
         if (!timeIntervalRef.current) {
-          timeIntervalRef.current = setInterval(() => {
-            setTime(formatTime());
-          }, 500);
+          timeIntervalRef.current = setInterval(() => { setTime(formatTime()) }, 500)
         }
-
         if (settings.enableAMOLEDSaver && !reducedMotion && !driftIntervalRef.current && !isSettingsOpen) {
-          driftIntervalRef.current = setInterval(() => {
-            setDriftOffset(generateRandomDrift());
-          }, 45000);
+          driftIntervalRef.current = setInterval(() => { setDriftOffset(generateRandomDrift()) }, 45000)
         }
       }
-    };
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [settings.enableAMOLEDSaver, reducedMotion, isSettingsOpen, isInfoOpen, formatTime])
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [settings.enableAMOLEDSaver, reducedMotion, isSettingsOpen, isInfoOpen, formatTime]);
-
-  // Handle auto-hiding controls
+  // Auto-hide controls
   React.useEffect(() => {
     if (!settings.autoHideControls) {
-      setShowControls(true);
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      return;
+      setShowControls(true)
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+      return
     }
-
     const resetTimer = () => {
-      setShowControls(true);
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      setShowControls(true)
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
       hideTimerRef.current = setTimeout(() => {
-        if (!isSettingsOpen && !isInfoOpen) {
-          setShowControls(false);
-        }
-      }, 10000);
-    };
-
-    // Initial timer
-    resetTimer();
-
-    const handleActivity = () => {
-      resetTimer();
-    };
-
-    window.addEventListener('mousemove', handleActivity);
-    window.addEventListener('mousedown', handleActivity);
-    window.addEventListener('touchstart', handleActivity);
-    window.addEventListener('keydown', handleActivity);
-
+        if (!isSettingsOpen && !isInfoOpen && !isTimerOpen) setShowControls(false)
+      }, 10000)
+    }
+    resetTimer()
+    window.addEventListener('mousemove', resetTimer)
+    window.addEventListener('mousedown', resetTimer)
+    window.addEventListener('touchstart', resetTimer)
+    window.addEventListener('keydown', resetTimer)
     return () => {
-      window.removeEventListener('mousemove', handleActivity);
-      window.removeEventListener('mousedown', handleActivity);
-      window.removeEventListener('touchstart', handleActivity);
-      window.removeEventListener('keydown', handleActivity);
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    };
-  }, [settings.autoHideControls, isSettingsOpen, isInfoOpen]);
+      window.removeEventListener('mousemove', resetTimer)
+      window.removeEventListener('mousedown', resetTimer)
+      window.removeEventListener('touchstart', resetTimer)
+      window.removeEventListener('keydown', resetTimer)
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+    }
+  }, [settings.autoHideControls, isSettingsOpen, isInfoOpen, isTimerOpen])
 
   const bgStyle: React.CSSProperties = React.useMemo(() => {
-    if (settings.enableAMOLEDSaver) {
-      return { backgroundColor: '#000000' };
-    }
-
+    if (settings.enableAMOLEDSaver) return { backgroundColor: '#000000' }
     if (settings.backgroundMode === 'gradient') {
       return {
         background: `linear-gradient(${settings.bgGradientAngle}deg, ${settings.gradientStart}, ${settings.gradientEnd})`,
         transition: reducedMotion ? 'none' : 'background 0.3s ease-in-out',
-      };
+      }
     }
-
     if (settings.backgroundMode === 'image') {
       return {
         backgroundImage: `url(${settings.backgroundImage})`,
@@ -203,13 +168,12 @@ export function App() {
         backgroundPosition: `${settings.bgOffsetX}% ${settings.bgOffsetY}%`,
         backgroundRepeat: 'no-repeat',
         transition: reducedMotion ? 'none' : 'opacity 0.3s ease-in-out',
-      };
+      }
     }
-
     return {
       backgroundColor: settings.solidColor,
       transition: reducedMotion ? 'none' : 'background-color 0.3s ease-in-out',
-    };
+    }
   }, [
     settings.enableAMOLEDSaver,
     settings.backgroundMode,
@@ -222,72 +186,143 @@ export function App() {
     settings.bgOffsetX,
     settings.bgOffsetY,
     reducedMotion,
-  ]);
+  ])
+
+  // Resolve top/bottom label text for the clock
+  // Timer labels take priority over custom text; multiple timers at the same position are joined
+  const TIMER_LABEL_SEPARATOR = '  '
+
+  const topLabelTimers = settings.timers.filter((t) => t.displayPosition === 'top')
+  const bottomLabelTimers = settings.timers.filter((t) => t.displayPosition === 'bottom')
+
+  const topTimerText = topLabelTimers.length > 0
+    ? topLabelTimers.map((t) => formatMs(timerControls[t.id]?.remainingMs ?? 0)).join(TIMER_LABEL_SEPARATOR)
+    : undefined
+
+  const bottomTimerText = bottomLabelTimers.length > 0
+    ? bottomLabelTimers.map((t) => formatMs(timerControls[t.id]?.remainingMs ?? 0)).join(TIMER_LABEL_SEPARATOR)
+    : undefined
+
+  const effectiveTopText = topTimerText ?? settings.topText
+  const effectiveBottomText = bottomTimerText ?? settings.bottomText
+  const effectiveShowTopText = topTimerText != null ? true : settings.showTopText
+  const effectiveShowBottomText = bottomTimerText != null ? true : settings.showBottomText
+
+  const driftApplied =
+    settings.enableAMOLEDSaver && settings.amoledSaverMode === 'drift'
+      ? driftOffset
+      : { x: 0, y: 0 }
 
   return (
-    <div 
-      className="relative w-full h-screen overflow-hidden"
-      style={bgStyle}
-    >
-      <div
-        className="w-full h-full select-none pointer-events-none"
-        style={{
-          ...getRotationStyle(),
-          transformOrigin: 'center center',
-          transition: 'transform 0.3s ease-in-out',
-        }}
-      >
-        {time.main && (
-          <Clock
-            time={time.main}
-            ampm={time.ampm}
-            ampmPosition={settings.ampmPosition}
-            clockMode={settings.clockMode}
-            color={settings.clockColor}
-            gradientStart={settings.clockGradientStart}
-            gradientEnd={settings.clockGradientEnd}
-            gradientAngle={settings.clockGradientAngle}
-            showStroke={settings.showStroke}
-            strokeWidth={settings.strokeWidth}
-            strokeColor={settings.strokeColor}
-            fontFamily={settings.customFontFamily || settings.fontFamily}
-            scale={settings.scale}
-            offsetX={settings.offsetX}
-            offsetY={settings.offsetY}
-            driftOffset={settings.enableAMOLEDSaver && settings.amoledSaverMode === 'drift' ? driftOffset : { x: 0, y: 0 }}
-            prefersReducedMotion={reducedMotion}
-            fontWeight={settings.fontWeight}
-            refreshKey={refreshKey}
-            animationMode={settings.animationMode}
-            topText={settings.topText}
-            bottomText={settings.bottomText}
-            showTopText={settings.showTopText}
-            showBottomText={settings.showBottomText}
-            showSeconds={settings.showSeconds}
-            pulseColon={settings.pulseColon}
-            tabularNums={settings.tabularNums}
-            tabularNumsFallback={settings.tabularNumsFallback}
-          />
-        )}
-      </div>
+    <div className="relative w-full h-screen overflow-hidden" style={bgStyle}>
+      {/* Main (non-floating) clock */}
+      {!settings.clockFloating && (
+        <div
+          className="w-full h-full select-none pointer-events-none"
+          style={{
+            ...getRotationStyle(),
+            transformOrigin: 'center center',
+            transition: 'transform 0.3s ease-in-out',
+          }}
+        >
+          {time.main && (
+            <Clock
+              time={time.main}
+              ampm={time.ampm}
+              ampmPosition={settings.ampmPosition}
+              clockMode={settings.clockMode}
+              color={settings.clockColor}
+              gradientStart={settings.clockGradientStart}
+              gradientEnd={settings.clockGradientEnd}
+              gradientAngle={settings.clockGradientAngle}
+              showStroke={settings.showStroke}
+              strokeWidth={settings.strokeWidth}
+              strokeColor={settings.strokeColor}
+              fontFamily={settings.customFontFamily || settings.fontFamily}
+              scale={settings.scale}
+              offsetX={settings.offsetX}
+              offsetY={settings.offsetY}
+              driftOffset={driftApplied}
+              prefersReducedMotion={reducedMotion}
+              fontWeight={settings.fontWeight}
+              refreshKey={0}
+              animationMode={settings.animationMode}
+              topText={effectiveTopText}
+              bottomText={effectiveBottomText}
+              showTopText={effectiveShowTopText}
+              showBottomText={effectiveShowBottomText}
+              showSeconds={settings.showSeconds}
+              pulseColon={settings.pulseColon}
+              tabularNums={settings.tabularNums}
+              tabularNumsFallback={settings.tabularNumsFallback}
+            />
+          )}
+        </div>
+      )}
 
+      {/* Floating clock */}
+      {settings.clockFloating && time.main && (
+        <FloatingClock
+          settings={settings}
+          time={time.main}
+          ampm={time.ampm}
+          topText={effectiveTopText}
+          bottomText={effectiveBottomText}
+          showTopText={effectiveShowTopText}
+          showBottomText={effectiveShowBottomText}
+          driftOffset={driftApplied}
+          prefersReducedMotion={reducedMotion}
+          refreshKey={0}
+          onTransformChange={(x, y, s, r) =>
+            updateMultiple({ clockFloatX: x, clockFloatY: y, clockFloatScale: s, clockFloatRotation: r })
+          }
+        />
+      )}
+
+      {/* Floating timer widgets */}
+      {settings.timers
+        .filter((t) => t.displayPosition === 'floating')
+        .map((t) => {
+          const ctrl = timerControls[t.id]
+          if (!ctrl) return null
+          return (
+            <FloatingTimerWidget
+              key={t.id}
+              config={t}
+              remainingMs={ctrl.remainingMs}
+              isRunning={ctrl.isRunning}
+              isExpired={ctrl.isExpired}
+              onPlay={ctrl.play}
+              onPause={ctrl.pause}
+              onReset={ctrl.reset}
+              onTransformChange={(x, y, scale, rotation) =>
+                updateTimer(t.id, { floatX: x, floatY: y, floatScale: scale, floatRotation: rotation })
+              }
+              onFontToggle={(useClockFont) => updateTimer(t.id, { useClockFont })}
+              clockColor={settings.clockColor}
+              clockFontFamily={settings.customFontFamily || settings.fontFamily}
+              clockFontWeight={settings.fontWeight}
+            />
+          )
+        })}
+
+      {/* UI Controls (auto-hide) */}
       <div
         className={cn(
-          "transition-opacity duration-1000 mix-blend-difference pb-safe",
-          !showControls ? "opacity-0" : "opacity-100"
+          'transition-opacity duration-1000 mix-blend-difference pb-safe',
+          !showControls ? 'opacity-0' : 'opacity-100',
         )}
       >
-        <RefreshButton
-          onRefresh={() => setRefreshKey(prev => prev + 1)}
+        <TimerButton
+          onToggle={() => setIsTimerOpen(!isTimerOpen)}
           prefersReducedMotion={reducedMotion}
+          hasActiveTimers={settings.timers.some((t) => timerControls[t.id]?.isRunning)}
         />
-
         <GearButton
           isOpen={isSettingsOpen}
           onToggle={() => setIsSettingsOpen(!isSettingsOpen)}
           prefersReducedMotion={reducedMotion}
         />
-
         <InfoButton
           onOpen={() => setIsInfoOpen(true)}
           prefersReducedMotion={reducedMotion}
@@ -307,6 +342,12 @@ export function App() {
         onClose={() => setIsSettingsOpen(false)}
       />
 
+      <TimerSheet
+        isOpen={isTimerOpen}
+        onClose={() => setIsTimerOpen(false)}
+        timerControls={timerControls}
+      />
+
       <InfoDialog
         isOpen={isInfoOpen}
         onClose={() => setIsInfoOpen(false)}
@@ -314,5 +355,5 @@ export function App() {
 
       <Toaster position="bottom-center" />
     </div>
-  );
+  )
 }
