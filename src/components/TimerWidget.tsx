@@ -1,27 +1,22 @@
 import React from 'react'
 import { motion, useMotionValue } from 'framer-motion'
 import { cn } from '@/lib/cn'
-import { formatMs } from '@/hooks/useTimer'
+import { formatMs } from '@/hooks/useTimerArray'
+import type { TimerConfig } from '@/store/settings'
 
-interface TimerWidgetProps {
-  remainingMs: number
-  isRunning: boolean
-  isExpired: boolean
-  position: 'top' | 'bottom' | 'floating'
-  /** Initial floating position as percentage of viewport (0-100) */
-  floatX: number
-  floatY: number
-  floatScale: number
-  floatRotation: number
-  onPlay: () => void
-  onPause: () => void
-  onReset: () => void
-  /** Called when the floating widget's position/scale/rotation changes */
-  onTransformChange?: (x: number, y: number, scale: number, rotation: number) => void
-  color?: string
+// ── Snap helper ───────────────────────────────────────────────────────────────
+
+const SNAP_THRESHOLD = 12
+const CARDINALS = [0, 90, 180, 270, -90, -180, 360]
+
+function snapRotation(deg: number): number {
+  for (const c of CARDINALS) {
+    if (Math.abs(deg - c) < SNAP_THRESHOLD) return c
+  }
+  return deg
 }
 
-// ── Small control buttons ─────────────────────────────────────────────────────
+// ── Icons ─────────────────────────────────────────────────────────────────────
 
 function PlayIcon() {
   return (
@@ -47,102 +42,68 @@ function ResetIcon() {
   )
 }
 
-// ── Inline (top / bottom) variant ─────────────────────────────────────────────
+// ── Controls auto-hide timeout ────────────────────────────────────────────────
+const CONTROLS_HIDE_DELAY = 5000 // ms
 
-interface InlineTimerProps {
+// Approximate half-dimensions of the widget pill for converting % <-> px positions.
+// These match the typical rendered size at scale=1: ~180px wide × ~44px tall.
+const WIDGET_HALF_WIDTH = 90  // half of ~180px typical width
+const WIDGET_HALF_HEIGHT = 22 // half of ~44px typical height (text + controls)
+
+// ── Floating timer widget ─────────────────────────────────────────────────────
+
+export interface FloatingTimerProps {
+  config: TimerConfig
   remainingMs: number
   isRunning: boolean
   isExpired: boolean
   onPlay: () => void
   onPause: () => void
   onReset: () => void
-  color?: string
+  onTransformChange: (x: number, y: number, scale: number, rotation: number) => void
+  onFontToggle: (useClockFont: boolean) => void
+  clockColor: string
+  clockFontFamily: string
+  clockFontWeight: number
 }
 
-const InlineTimer: React.FC<InlineTimerProps> = ({
+export const FloatingTimerWidget: React.FC<FloatingTimerProps> = ({
+  config,
   remainingMs,
   isRunning,
   isExpired,
   onPlay,
   onPause,
   onReset,
-  color = '#ffffff',
-}) => {
-  const display = isExpired ? "Time's up!" : formatMs(remainingMs)
-
-  return (
-    <div
-      className="flex items-center gap-2 justify-center select-none"
-      style={{ color }}
-    >
-      <span
-        className={cn(
-          'font-mono text-sm tabular-nums',
-          isExpired && 'animate-pulse',
-        )}
-      >
-        {display}
-      </span>
-
-      <div className="flex items-center gap-1">
-        {/* Play / Pause */}
-        <button
-          onClick={isRunning ? onPause : onPlay}
-          className="p-1 rounded hover:bg-white/10 active:scale-90 transition-all"
-          aria-label={isRunning ? 'Pause timer' : 'Start timer'}
-          disabled={isExpired}
-        >
-          {isRunning ? <PauseIcon /> : <PlayIcon />}
-        </button>
-
-        {/* Reset */}
-        <button
-          onClick={onReset}
-          className="p-1 rounded hover:bg-white/10 active:scale-90 transition-all"
-          aria-label="Reset timer"
-        >
-          <ResetIcon />
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// ── Floating (beta) variant ───────────────────────────────────────────────────
-
-interface FloatingTimerProps extends InlineTimerProps {
-  floatX: number
-  floatY: number
-  floatScale: number
-  floatRotation: number
-  onTransformChange?: (x: number, y: number, scale: number, rotation: number) => void
-}
-
-// Approximate half-dimensions of the floating widget used to centre its initial position
-const WIDGET_HALF_WIDTH = 90  // px – half of typical widget width
-const WIDGET_HALF_HEIGHT = 30 // px – half of typical widget height
-
-const FloatingTimer: React.FC<FloatingTimerProps> = ({
-  remainingMs,
-  isRunning,
-  isExpired,
-  onPlay,
-  onPause,
-  onReset,
-  floatX,
-  floatY,
-  floatScale,
-  floatRotation,
   onTransformChange,
-  color = '#ffffff',
+  onFontToggle,
+  clockColor,
+  clockFontFamily,
+  clockFontWeight,
 }) => {
   const display = isExpired ? "Time's up!" : formatMs(remainingMs)
+  const isDuration = config.inputMode === 'duration'
 
-  // Motion values for smooth drag
+  // Auto-hide controls
+  const [controlsVisible, setControlsVisible] = React.useState(false)
+  const hideTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const showControls = React.useCallback(() => {
+    setControlsVisible(true)
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
+    hideTimeoutRef.current = setTimeout(() => {
+      setControlsVisible(false)
+    }, CONTROLS_HIDE_DELAY)
+  }, [])
+
+  React.useEffect(() => () => {
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
+  }, [])
+
+  // Drag / pinch gesture state
   const x = useMotionValue(0)
   const y = useMotionValue(0)
 
-  // Track pinch / rotation gesture
   const gestureRef = React.useRef<{
     startDist: number
     startAngle: number
@@ -150,25 +111,17 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
     startRotation: number
   } | null>(null)
 
-  const [scale, setScale] = React.useState(floatScale)
-  const [rotation, setRotation] = React.useState(floatRotation)
-  const scaleRef = React.useRef(floatScale)
-  const rotationRef = React.useRef(floatRotation)
+  const [scale, setScale] = React.useState(config.floatScale)
+  const [rotation, setRotation] = React.useState(config.floatRotation)
+  const scaleRef = React.useRef(config.floatScale)
+  const rotRef = React.useRef(config.floatRotation)
 
-  // Sync from props only on mount / when props change externally
-  React.useEffect(() => {
-    setScale(floatScale)
-    scaleRef.current = floatScale
-  }, [floatScale])
-  React.useEffect(() => {
-    setRotation(floatRotation)
-    rotationRef.current = floatRotation
-  }, [floatRotation])
-
-  // Approximate half-dimensions of the widget used to centre the initial position
-  // Position in viewport pixels derived from percentage
-  const initX = React.useRef((window.innerWidth * floatX) / 100 - WIDGET_HALF_WIDTH)
-  const initY = React.useRef((window.innerHeight * floatY) / 100 - WIDGET_HALF_HEIGHT)
+  const initX = React.useRef(
+    (window.innerWidth * config.floatX) / 100 - WIDGET_HALF_WIDTH,
+  )
+  const initY = React.useRef(
+    (window.innerHeight * config.floatY) / 100 - WIDGET_HALF_HEIGHT,
+  )
 
   React.useEffect(() => {
     x.set(initX.current)
@@ -176,17 +129,37 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  React.useEffect(() => {
+    setScale(config.floatScale)
+    scaleRef.current = config.floatScale
+  }, [config.floatScale])
+
+  React.useEffect(() => {
+    setRotation(config.floatRotation)
+    rotRef.current = config.floatRotation
+  }, [config.floatRotation])
+
+  const saveTransform = React.useCallback(() => {
+    const pctX = ((x.get() + WIDGET_HALF_WIDTH) / window.innerWidth) * 100
+    const pctY = ((y.get() + WIDGET_HALF_HEIGHT) / window.innerHeight) * 100
+    onTransformChange(
+      Math.max(0, Math.min(100, pctX)),
+      Math.max(0, Math.min(100, pctY)),
+      scaleRef.current,
+      rotRef.current,
+    )
+  }, [x, y, onTransformChange])
+
   const handleTouchStart = (e: React.TouchEvent) => {
+    showControls()
     if (e.touches.length === 2) {
       const t0 = e.touches[0]
       const t1 = e.touches[1]
-      const dx = t1.clientX - t0.clientX
-      const dy = t1.clientY - t0.clientY
       gestureRef.current = {
-        startDist: Math.hypot(dx, dy),
-        startAngle: Math.atan2(dy, dx) * (180 / Math.PI),
+        startDist: Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY),
+        startAngle: Math.atan2(t1.clientY - t0.clientY, t1.clientX - t0.clientX) * (180 / Math.PI),
         startScale: scaleRef.current,
-        startRotation: rotationRef.current,
+        startRotation: rotRef.current,
       }
     }
   }
@@ -203,13 +176,13 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
 
       const newScale = Math.max(
         0.3,
-        Math.min(4, gestureRef.current.startScale * (dist / gestureRef.current.startDist)),
+        Math.min(5, gestureRef.current.startScale * (dist / gestureRef.current.startDist)),
       )
-      const newRotation =
-        gestureRef.current.startRotation + (angle - gestureRef.current.startAngle)
+      const rawRotation = gestureRef.current.startRotation + (angle - gestureRef.current.startAngle)
+      const newRotation = snapRotation(rawRotation)
 
       scaleRef.current = newScale
-      rotationRef.current = newRotation
+      rotRef.current = newRotation
       setScale(newScale)
       setRotation(newRotation)
     }
@@ -218,141 +191,102 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
   const handleTouchEnd = () => {
     if (gestureRef.current) {
       gestureRef.current = null
-      // Save the new position/transform
-      const pctX = ((x.get() + WIDGET_HALF_WIDTH) / window.innerWidth) * 100
-      const pctY = ((y.get() + WIDGET_HALF_HEIGHT) / window.innerHeight) * 100
-      onTransformChange?.(
-        Math.max(0, Math.min(100, pctX)),
-        Math.max(0, Math.min(100, pctY)),
-        scaleRef.current,
-        rotationRef.current,
-      )
+      saveTransform()
     }
   }
 
-  const handleDragEnd = () => {
-    const pctX = ((x.get() + WIDGET_HALF_WIDTH) / window.innerWidth) * 100
-    const pctY = ((y.get() + WIDGET_HALF_HEIGHT) / window.innerHeight) * 100
-    onTransformChange?.(
-      Math.max(0, Math.min(100, pctX)),
-      Math.max(0, Math.min(100, pctY)),
-      scaleRef.current,
-      rotationRef.current,
-    )
-  }
+  const fontFamily = config.useClockFont ? clockFontFamily : 'Inter, sans-serif'
+  const fontWeight = config.useClockFont ? clockFontWeight : 400
 
   return (
     <motion.div
       drag
       dragMomentum={false}
-      onDragEnd={handleDragEnd}
+      onDragEnd={saveTransform}
+      onDragStart={showControls}
+      onClick={showControls}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className={cn(
-        'fixed z-50 touch-none cursor-grab active:cursor-grabbing',
-        'rounded-xl px-4 py-2 shadow-2xl',
-        'backdrop-blur-md bg-black/70 border border-white/10',
-        'select-none',
-      )}
+      className="fixed z-50 touch-none cursor-grab active:cursor-grabbing select-none"
       style={{
         x,
         y,
         rotate: rotation,
         scale,
-        color,
         top: 0,
         left: 0,
+        color: clockColor,
       }}
     >
-      {/* drag handle label */}
-      <div className="flex items-center gap-3 whitespace-nowrap">
-        {/* Timer icon */}
-        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 opacity-60 shrink-0">
-          <path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42A8.962 8.962 0 0 0 12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9a9 9 0 0 0 7.03-14.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z" />
-        </svg>
+      {/* Countdown text */}
+      <div
+        className={cn(
+          'whitespace-nowrap tabular-nums text-sm font-medium px-2 py-1',
+          isExpired && 'animate-pulse',
+        )}
+        style={{ fontFamily, fontWeight }}
+      >
+        {display}
+      </div>
 
-        <span
-          className={cn(
-            'font-mono text-sm tabular-nums font-medium',
-            isExpired && 'animate-pulse text-red-400',
-          )}
-        >
-          {display}
-        </span>
-
-        <div className="flex items-center gap-0.5">
+      {/* Auto-hiding controls */}
+      <motion.div
+        animate={{ opacity: controlsVisible ? 1 : 0, y: controlsVisible ? 0 : -4 }}
+        transition={{ duration: 0.2 }}
+        className="flex items-center gap-1 px-1 pb-1 pointer-events-auto"
+        style={{ pointerEvents: controlsVisible ? 'auto' : 'none' }}
+      >
+        {/* Play / Pause – only for duration timers */}
+        {isDuration && (
           <button
-            onClick={isRunning ? onPause : onPlay}
+            onClick={(e) => {
+              e.stopPropagation()
+              isRunning ? onPause() : onPlay()
+              showControls()
+            }}
             disabled={isExpired}
-            className="p-1.5 rounded-lg hover:bg-white/10 active:scale-90 transition-all disabled:opacity-40"
-            aria-label={isRunning ? 'Pause timer' : 'Start timer'}
+            className="p-1 rounded hover:bg-white/10 active:scale-90 transition-all disabled:opacity-30"
+            aria-label={isRunning ? 'Pause' : 'Start'}
           >
             {isRunning ? <PauseIcon /> : <PlayIcon />}
           </button>
+        )}
+
+        {/* Reset – only for duration timers */}
+        {isDuration && (
           <button
-            onClick={onReset}
-            className="p-1.5 rounded-lg hover:bg-white/10 active:scale-90 transition-all"
-            aria-label="Reset timer"
+            onClick={(e) => {
+              e.stopPropagation()
+              onReset()
+              showControls()
+            }}
+            className="p-1 rounded hover:bg-white/10 active:scale-90 transition-all"
+            aria-label="Reset"
           >
             <ResetIcon />
           </button>
-        </div>
-      </div>
+        )}
 
-      {/* pinch/zoom hint shown once */}
-      <p className="text-[9px] text-center text-white/30 mt-0.5 leading-none">
-        drag · pinch to zoom/rotate
-      </p>
+        {/* Font toggle */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onFontToggle(!config.useClockFont)
+            showControls()
+          }}
+          className={cn(
+            'px-1.5 py-0.5 rounded text-[9px] transition-all',
+            config.useClockFont
+              ? 'bg-white/20 text-white'
+              : 'bg-white/5 text-white/50 hover:bg-white/10',
+          )}
+          aria-label="Toggle clock font"
+          title={config.useClockFont ? 'Using clock font' : 'Using default font'}
+        >
+          Aa
+        </button>
+      </motion.div>
     </motion.div>
-  )
-}
-
-// ── Public component ──────────────────────────────────────────────────────────
-
-export const TimerWidget: React.FC<TimerWidgetProps> = ({
-  remainingMs,
-  isRunning,
-  isExpired,
-  position,
-  floatX,
-  floatY,
-  floatScale,
-  floatRotation,
-  onPlay,
-  onPause,
-  onReset,
-  onTransformChange,
-  color,
-}) => {
-  if (position === 'floating') {
-    return (
-      <FloatingTimer
-        remainingMs={remainingMs}
-        isRunning={isRunning}
-        isExpired={isExpired}
-        onPlay={onPlay}
-        onPause={onPause}
-        onReset={onReset}
-        floatX={floatX}
-        floatY={floatY}
-        floatScale={floatScale}
-        floatRotation={floatRotation}
-        onTransformChange={onTransformChange}
-        color={color}
-      />
-    )
-  }
-
-  return (
-    <InlineTimer
-      remainingMs={remainingMs}
-      isRunning={isRunning}
-      isExpired={isExpired}
-      onPlay={onPlay}
-      onPause={onPause}
-      onReset={onReset}
-      color={color}
-    />
   )
 }
