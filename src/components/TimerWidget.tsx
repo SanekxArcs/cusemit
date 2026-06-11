@@ -102,8 +102,14 @@ export const FloatingTimerWidget: React.FC<FloatingTimerProps> = ({
   }, [])
 
   // Drag / pinch gesture state
-  const x = useMotionValue(0)
-  const y = useMotionValue(0)
+  const initX = React.useRef(
+    (window.innerWidth * config.floatX) / 100 - WIDGET_HALF_WIDTH,
+  )
+  const initY = React.useRef(
+    (window.innerHeight * config.floatY) / 100 - WIDGET_HALF_HEIGHT,
+  )
+  const x = useMotionValue(initX.current)
+  const y = useMotionValue(initY.current)
 
   const gestureRef = React.useRef<{
     startDist: number
@@ -116,19 +122,6 @@ export const FloatingTimerWidget: React.FC<FloatingTimerProps> = ({
   const [rotation, setRotation] = React.useState(config.floatRotation)
   const scaleRef = React.useRef(config.floatScale)
   const rotRef = React.useRef(config.floatRotation)
-
-  const initX = React.useRef(
-    (window.innerWidth * config.floatX) / 100 - WIDGET_HALF_WIDTH,
-  )
-  const initY = React.useRef(
-    (window.innerHeight * config.floatY) / 100 - WIDGET_HALF_HEIGHT,
-  )
-
-  React.useEffect(() => {
-    x.set(initX.current)
-    y.set(initY.current)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   React.useEffect(() => {
     setScale(config.floatScale)

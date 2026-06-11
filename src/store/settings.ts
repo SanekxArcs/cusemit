@@ -204,6 +204,15 @@ interface SettingsStore {
 
 const STORAGE_KEY = 'app.clock.settings.v1'
 
+let persistTimeoutId: ReturnType<typeof setTimeout> | null = null
+function schedulePersist(get: () => SettingsStore) {
+  if (persistTimeoutId !== null) clearTimeout(persistTimeoutId)
+  persistTimeoutId = setTimeout(() => {
+    persistTimeoutId = null
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(get().settings))
+  }, 500)
+}
+
 /**
  * Zustand store with localStorage persistence for clock settings.
  */
@@ -214,21 +223,14 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     set((state) => ({
       settings: { ...state.settings, [key]: value },
     }))
-    // Debounce persistence to avoid excessive writes
-    setTimeout(() => {
-      const state = get()
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.settings))
-    }, 500)
+    schedulePersist(get)
   },
 
   updateMultiple: (updates) => {
     set((state) => ({
       settings: { ...state.settings, ...updates },
     }))
-    setTimeout(() => {
-      const state = get()
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.settings))
-    }, 500)
+    schedulePersist(get)
   },
 
   resetToDefaults: () => {
@@ -276,23 +278,20 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   addSavedFont: (font) => {
-    const { settings } = get()
-    if (!settings.savedFonts.includes(font)) {
-      const newSavedFonts = [...settings.savedFonts, font]
-      set((state) => ({
-        settings: { ...state.settings, savedFonts: newSavedFonts },
-      }))
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...settings, savedFonts: newSavedFonts }))
-    }
+    if (get().settings.savedFonts.includes(font)) return
+    const newSavedFonts = [...get().settings.savedFonts, font]
+    set((state) => ({
+      settings: { ...state.settings, savedFonts: newSavedFonts },
+    }))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(get().settings))
   },
 
   removeSavedFont: (font) => {
-    const { settings } = get();
-    const newSavedFonts = settings.savedFonts.filter((f) => f !== font);
+    const newSavedFonts = get().settings.savedFonts.filter((f) => f !== font)
     set((state) => ({
       settings: { ...state.settings, savedFonts: newSavedFonts },
-    }));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...settings, savedFonts: newSavedFonts }));
+    }))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(get().settings))
   },
 
   hideCuratedFont: (fontValue: string) => {
@@ -307,11 +306,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   resetHiddenFonts: () => {
-    const { settings } = get();
     set((state) => ({
       settings: { ...state.settings, hiddenCuratedFonts: [] },
-    }));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...settings, hiddenCuratedFonts: [] }));
+    }))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(get().settings))
   },
 
   addTimer: (partial) => {

@@ -75,14 +75,23 @@ export function useTimerArray(configs: TimerConfig[]): Record<string, TimerContr
         if (c.inputMode === 'datetime') {
           const ms = calcDatetimeMs(c)
           next[c.id] = { remainingMs: ms, isRunning: ms > 0, isExpired: isDatetimeExpired(c) }
-        } else if (existing?.isRunning) {
-          // Keep running state for active duration timers
-          next[c.id] = existing
-        } else {
-          // New timer or paused timer – reset to initial duration
+        } else if (!existing) {
+          // New timer – initialise to full duration
           const ms = calcDurationMs(c)
           next[c.id] = { remainingMs: ms, isRunning: false, isExpired: false }
           endTimestampsRef.current[c.id] = null
+        } else if (existing.isRunning) {
+          // Keep running state for active duration timers
+          next[c.id] = existing
+        } else {
+          // Paused or expired – preserve progress; only cap if duration was reduced below remaining
+          const configMs = calcDurationMs(c)
+          if (existing.remainingMs > configMs) {
+            next[c.id] = { remainingMs: configMs, isRunning: false, isExpired: false }
+            endTimestampsRef.current[c.id] = null
+          } else {
+            next[c.id] = existing
+          }
         }
       }
 
@@ -141,33 +150,45 @@ export function useTimerArray(configs: TimerConfig[]): Record<string, TimerContr
     return () => clearInterval(interval)
   }, []) // runs once; uses refs for fresh data
 
-  // Build controls per timer
-  const result: Record<string, TimerControls> = {}
+  // Stable closures per timer id – created once, never recreated on re-render
+  const stableControlsRef = React.useRef<Record<string, { play: () => void; pause: () => void; reset: () => void }>>({})
 
   for (const config of configs) {
-    const state = states[config.id] ?? { remainingMs: 0, isRunning: false, isExpired: false }
     const id = config.id
-
-    result[id] = {
-      ...state,
-      play() {
-        const s = statesRef.current[id]
-        if (!s || s.isRunning || s.isExpired || s.remainingMs <= 0) return
-        endTimestampsRef.current[id] = Date.now() + s.remainingMs
-        setStates((prev) => ({ ...prev, [id]: { ...prev[id], isRunning: true } }))
-      },
-      pause() {
-        endTimestampsRef.current[id] = null
-        setStates((prev) => ({ ...prev, [id]: { ...prev[id], isRunning: false } }))
-      },
-      reset() {
-        endTimestampsRef.current[id] = null
-        const cfg = configsRef.current.find((c) => c.id === id)
-        if (!cfg) return
-        const ms = calcDurationMs(cfg)
-        setStates((prev) => ({ ...prev, [id]: { remainingMs: ms, isRunning: false, isExpired: false } }))
-      },
+    if (!stableControlsRef.current[id]) {
+      stableControlsRef.current[id] = {
+        play() {
+          const s = statesRef.current[id]
+          if (!s || s.isRunning || s.isExpired || s.remainingMs <= 0) return
+          endTimestampsRef.current[id] = Date.now() + s.remainingMs
+          setStates((prev) => ({ ...prev, [id]: { ...prev[id], isRunning: true } }))
+        },
+        pause() {
+          endTimestampsRef.current[id] = null
+          setStates((prev) => ({ ...prev, [id]: { ...prev[id], isRunning: false } }))
+        },
+        reset() {
+          endTimestampsRef.current[id] = null
+          const cfg = configsRef.current.find((c) => c.id === id)
+          if (!cfg) return
+          const ms = calcDurationMs(cfg)
+          setStates((prev) => ({ ...prev, [id]: { remainingMs: ms, isRunning: false, isExpired: false } }))
+        },
+      }
     }
+  }
+
+  // Clean up closures for removed timers
+  const currentIds = new Set(configs.map((c) => c.id))
+  for (const id in stableControlsRef.current) {
+    if (!currentIds.has(id)) delete stableControlsRef.current[id]
+  }
+
+  // Combine current state with stable closures
+  const result: Record<string, TimerControls> = {}
+  for (const config of configs) {
+    const state = states[config.id] ?? { remainingMs: 0, isRunning: false, isExpired: false }
+    result[config.id] = { ...state, ...stableControlsRef.current[config.id] }
   }
 
   return result

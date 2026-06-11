@@ -117,7 +117,7 @@ export function App() {
           timeIntervalRef.current = setInterval(() => { setTime(formatTime()) }, 500)
         }
         if (settings.enableAMOLEDSaver && !reducedMotion && !driftIntervalRef.current && !isSettingsOpen) {
-          driftIntervalRef.current = setInterval(() => { setDriftOffset(generateRandomDrift()) }, 45000)
+          driftIntervalRef.current = setInterval(() => { setDriftOffset(generateRandomDrift()) }, 60000)
         }
       }
     }

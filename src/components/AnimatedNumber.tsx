@@ -1,5 +1,5 @@
 import React from 'react'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 
 interface AnimatedNumberProps {
   value: string
@@ -110,22 +110,24 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
   };
 
   return (
-    <motion.span
-      key={`${value}`}
-      initial={variants.initial}
-      animate={variants.animate}
-      exit={variants.exit}
-      transition={transition}
-      className={`inline-block ${numericClass}`}
-      style={{
-        display: 'inline-block',
-        whiteSpace: 'pre',
-        ...fallbackStyle,
-        ...style
-      }}
-    >
-      {value}
-    </motion.span>
+    <AnimatePresence mode="wait">
+      <motion.span
+        key={`${value}`}
+        initial={variants.initial}
+        animate={variants.animate}
+        exit={variants.exit}
+        transition={transition}
+        className={`inline-block ${numericClass}`}
+        style={{
+          display: 'inline-block',
+          whiteSpace: 'pre',
+          ...fallbackStyle,
+          ...style
+        }}
+      >
+        {value}
+      </motion.span>
+    </AnimatePresence>
   )
 }
 

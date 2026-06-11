@@ -68,16 +68,17 @@ export const Clock: React.FC<ClockProps> = ({
 }) => {
   const fontFamilyCSS = getFontFamilyCSS(fontFamily)
   const [fontSize, setFontSize] = React.useState(100)
+  const containerRef = React.useRef<HTMLDivElement>(null)
 
   // Override logic: AM/PM takes priority over custom text at top/bottom
   const isTopTextHidden = ampm && ampmPosition === 'top';
   const isBottomTextHidden = ampm && ampmPosition === 'bottom';
 
   React.useEffect(() => {
-    const calculateFontSize = () => {
-      const container = document.querySelector('.clock-container');
-      if (!container) return;
+    const container = containerRef.current
+    if (!container) return
 
+    const calculateFontSize = () => {
       const measurer = document.createElement('div');
       measurer.style.position = 'absolute';
       measurer.style.visibility = 'hidden';
@@ -115,10 +116,7 @@ export const Clock: React.FC<ClockProps> = ({
     calculateFontSize()
 
     const resizeObserver = new ResizeObserver(calculateFontSize)
-    const container = document.querySelector('.clock-container');
-    if (container) {
-      resizeObserver.observe(container)
-    }
+    resizeObserver.observe(container)
 
     return () => resizeObserver.disconnect()
   }, [scale, fontFamily, fontWeight, fontFamilyCSS, refreshKey])
@@ -152,6 +150,7 @@ export const Clock: React.FC<ClockProps> = ({
   return (
     <AnimatePresence mode="wait">
       <motion.div
+        ref={containerRef}
         className="absolute inset-0 flex items-center justify-center pointer-events-none clock-container"
         animate="animate"
         variants={driftVariants}
