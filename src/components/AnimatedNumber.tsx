@@ -79,7 +79,7 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
           initial: { y: 40, opacity: 0 },
           animate: { y: 0, opacity: 1 },
           exit: { y: -40, opacity: 0 },
-          transition: { type: 'spring', damping: 10, stiffness: 100 }
+          transition: { type: 'spring' as const, damping: 10, stiffness: 100 }
         };
       case 'rotate':
         return {
@@ -106,7 +106,7 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
   const variants = getVariants();
   const transition = variants.transition || {
     duration: 0.4,
-    ease: 'easeOut',
+    ease: 'easeOut' as const,
   };
 
   return (

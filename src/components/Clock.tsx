@@ -127,7 +127,7 @@ export const Clock: React.FC<ClockProps> = ({
     animate: {
       x: `calc(${offsetX}% + ${(prefersReducedMotion ? 0 : driftOffset.x)}px)`,
       y: `calc(${offsetY}% + ${(prefersReducedMotion ? 0 : driftOffset.y)}px)`,
-      transition: { duration: 0.3, ease: 'easeInOut' },
+      transition: { duration: 0.3, ease: 'easeInOut' as const },
     },
   }
 
