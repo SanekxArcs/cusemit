@@ -192,6 +192,7 @@ interface SettingsStore {
   updateMultiple: (updates: Partial<ClockSettings>) => void
   resetToDefaults: () => void
   loadSettings: () => void
+  flushPersist: () => void
   addSavedFont: (font: string) => void
   removeSavedFont: (font: string) => void
   hideCuratedFont: (fontValue: string) => void
@@ -213,11 +214,47 @@ function schedulePersist(get: () => SettingsStore) {
   }, 500)
 }
 
+function loadInitialSettings(): ClockSettings {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      let migratedTimers: TimerConfig[] = parsed.timers ?? []
+      if (!parsed.timers && parsed.timerEnabled) {
+        migratedTimers = [makeTimerConfig({
+          label: 'Timer',
+          inputMode: parsed.timerInputMode ?? 'duration',
+          hours: parsed.timerHours ?? 0,
+          minutes: parsed.timerMinutes ?? 5,
+          targetDatetime: parsed.timerTargetDatetime ?? '',
+          displayPosition: parsed.timerDisplayPosition ?? 'bottom',
+          floatX: parsed.timerFloatX ?? 50,
+          floatY: parsed.timerFloatY ?? 80,
+          floatScale: parsed.timerFloatScale ?? 1,
+          floatRotation: parsed.timerFloatRotation ?? 0,
+          useClockFont: false,
+        })]
+      }
+      return {
+        ...DEFAULT_SETTINGS,
+        ...parsed,
+        timers: migratedTimers,
+        orientation: normalizeOrientation(parsed.orientation),
+      }
+    }
+  } catch {
+    // ignore parse errors, fall back to defaults
+  }
+  return DEFAULT_SETTINGS
+}
+
 /**
  * Zustand store with localStorage persistence for clock settings.
+ * Initialized synchronously from localStorage so the first render already
+ * has the correct persisted values — no "flash of defaults" on reload.
  */
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
-  settings: DEFAULT_SETTINGS,
+  settings: loadInitialSettings(),
 
   updateSetting: (key, value) => {
     set((state) => ({
@@ -239,41 +276,15 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   loadSettings: () => {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored)
+    const loaded = loadInitialSettings()
+    set({ settings: loaded })
+  },
 
-        // Migration: convert old single-timer fields to timers array
-        let migratedTimers: TimerConfig[] = parsed.timers ?? []
-        if (!parsed.timers && parsed.timerEnabled) {
-          migratedTimers = [makeTimerConfig({
-            label: 'Timer',
-            inputMode: parsed.timerInputMode ?? 'duration',
-            hours: parsed.timerHours ?? 0,
-            minutes: parsed.timerMinutes ?? 5,
-            targetDatetime: parsed.timerTargetDatetime ?? '',
-            displayPosition: parsed.timerDisplayPosition ?? 'bottom',
-            floatX: parsed.timerFloatX ?? 50,
-            floatY: parsed.timerFloatY ?? 80,
-            floatScale: parsed.timerFloatScale ?? 1,
-            floatRotation: parsed.timerFloatRotation ?? 0,
-            useClockFont: false,
-          })]
-        }
-
-        set({
-          settings: {
-            ...DEFAULT_SETTINGS,
-            ...parsed,
-            timers: migratedTimers,
-            orientation: normalizeOrientation(parsed.orientation),
-          },
-        })
-      } catch {
-        // On parse error, keep defaults
-        console.warn('Failed to parse stored settings, using defaults')
-      }
+  flushPersist: () => {
+    if (persistTimeoutId !== null) {
+      clearTimeout(persistTimeoutId)
+      persistTimeoutId = null
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(get().settings))
     }
   },
 

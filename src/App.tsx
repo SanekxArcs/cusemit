@@ -18,7 +18,7 @@ import { FloatingTimerWidget } from '@/components/TimerWidget'
 import { FloatingClock } from '@/components/FloatingClock'
 
 export function App() {
-  const { settings, loadSettings, updateMultiple, updateTimer } = useSettingsStore()
+  const { settings, loadSettings, flushPersist, updateMultiple, updateTimer } = useSettingsStore()
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false)
   const [isTimerOpen, setIsTimerOpen] = React.useState(false)
   const [time, setTime] = React.useState({ main: '', ampm: '' })
@@ -38,6 +38,11 @@ export function App() {
   React.useEffect(() => {
     loadSettings()
   }, [loadSettings])
+
+  React.useEffect(() => {
+    window.addEventListener('beforeunload', flushPersist)
+    return () => window.removeEventListener('beforeunload', flushPersist)
+  }, [flushPersist])
 
   const formatTime = React.useCallback(() => {
     const now = new Date()
