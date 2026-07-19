@@ -11,6 +11,8 @@ import { useSettingsStore } from '@/store/settings'
 import { DriftOffset, generateRandomDrift, prefersReducedMotion } from '@/lib/amoledSaver'
 import { loadGoogleFont, CURATED_FONTS } from '@/lib/fonts'
 import { usePWA } from '@/hooks/usePWA'
+import { useWakeLock } from '@/hooks/useWakeLock'
+import { useDailyReload } from '@/hooks/useDailyReload'
 import { InfoButton } from '@/components/InfoButton'
 import { InfoDialog } from '@/components/InfoDialog'
 import { useTimerArray, formatMs } from '@/hooks/useTimerArray'
@@ -30,10 +32,17 @@ export function App() {
   const timeIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
   const reducedMotion = prefersReducedMotion()
   usePWA()
+  useWakeLock()
 
   // ── Timers ───────────────────────────────────────────────────────────────────
   const timerControls = useTimerArray(settings.timers)
   // ─────────────────────────────────────────────────────────────────────────────
+
+  const timerControlsRef = React.useRef(timerControls)
+  timerControlsRef.current = timerControls
+  useDailyReload(4, () =>
+    settings.timers.some((t) => timerControlsRef.current[t.id]?.isRunning)
+  )
 
   React.useEffect(() => {
     loadSettings()

@@ -4,6 +4,8 @@
  */
 
 const CACHE_NAME = 'digital-clock-v1'
+const FONT_CACHE_NAME = 'digital-clock-fonts-v1'
+const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com']
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -29,7 +31,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
+          if (cacheName !== CACHE_NAME && cacheName !== FONT_CACHE_NAME) {
             return caches.delete(cacheName)
           }
         })
@@ -46,8 +48,40 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Skip cross-origin requests
-  if (!event.request.url.startsWith(self.location.origin)) {
+  const requestUrl = new URL(event.request.url)
+
+  // Google Fonts: cache-first (content is versioned/immutable per URL), so a
+  // cold app start never has to wait on a network round-trip before the
+  // clock's chosen font is ready, avoiding a fallback-font flash at full scale.
+  if (FONT_HOSTS.includes(requestUrl.hostname)) {
+    event.respondWith(
+      caches.open(FONT_CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(event.request)
+        if (cached) {
+          // Revalidate in background without blocking
+          fetch(event.request)
+            .then((response) => {
+              // Font CSS is fetched no-cors (opaque, status 0) since the <link>
+              // tag has no crossorigin attribute — status 0 is the success case there.
+              if (response && (response.ok || response.status === 0)) {
+                cache.put(event.request, response.clone())
+              }
+            })
+            .catch(() => {})
+          return cached
+        }
+        const response = await fetch(event.request)
+        if (response && (response.ok || response.status === 0)) {
+          cache.put(event.request, response.clone())
+        }
+        return response
+      })
+    )
+    return
+  }
+
+  // Skip other cross-origin requests
+  if (requestUrl.origin !== self.location.origin) {
     return
   }
 
