@@ -237,7 +237,7 @@ select:focus-visible,
   opacity: 0;
   pointer-events: none;
 }
-.rail-hidden:focus-within {
+.rail-hidden:has(:focus-visible) {
   opacity: 1;
   pointer-events: auto;
 }
@@ -397,6 +397,10 @@ select:focus-visible,
   border-radius: 10px;
   background: #101215;
   gap: 3px;
+}
+.ui-segments[data-columns] {
+  display: grid;
+  grid-template-columns: repeat(var(--segment-columns), minmax(0, 1fr));
 }
 .ui-segment {
   flex: 1;

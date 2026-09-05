@@ -22,7 +22,6 @@ import {
   Range,
   Section,
   Segments,
-  Select,
   Toggle,
 } from './ui/controls';
 import { FontBrowser } from './FontBrowser';
@@ -163,6 +162,7 @@ export function SettingsSheet({
   const curated = CURATED_FONTS.find(
     (f) => f.label === normalizeFont(s.customFontFamily || s.fontFamily)
   );
+  const weights = curated?.weights ?? [400, 500, 600, 700, 800, 900];
   const position = s.clockFloating ? 'floating' : s.autoFit ? 'auto' : 'manual';
 
   async function upload(file?: File) {
@@ -398,19 +398,23 @@ export function SettingsSheet({
         <>
           <FontBrowser />
           <Section title="Typography">
-            <Select
-              label="Font weight"
-              value={String(s.fontWeight)}
-              onChange={(v) => update('fontWeight', Number(v))}
-              options={(curated?.weights ?? [400, 500, 600, 700, 800, 900]).map(
-                (w) => ({
+            {/* A font with a single weight has nothing to choose between. */}
+            {weights.length > 1 && (
+              <Segments
+                label="Font weight"
+                // Fonts ship anywhere from two weights to six; lay them out on
+                // the divisor that leaves no half-empty row.
+                columns={weights.length % 3 === 0 ? 3 : 2}
+                value={String(s.fontWeight)}
+                onChange={(v) => update('fontWeight', Number(v))}
+                options={weights.map((w) => ({
                   value: String(w),
                   label:
                     String(w) +
                     (w === 400 ? ' · Regular' : w === 700 ? ' · Bold' : ''),
-                })
-              )}
-            />
+                }))}
+              />
+            )}
             {toggle(
               'tabularNums',
               'Equal-width digits',
@@ -465,8 +469,9 @@ export function SettingsSheet({
               'A soft pulse when seconds are hidden.'
             )}
             {s.clockFormat === '12h' && (
-              <Select
+              <Segments
                 label="AM / PM position"
+                columns={2}
                 value={s.ampmPosition}
                 onChange={(v) => update('ampmPosition', v)}
                 options={[
@@ -479,19 +484,21 @@ export function SettingsSheet({
             )}
           </Section>
           <Section title="Screen">
-            <Select
+            <Segments
               label="Screen rotation"
+              columns={2}
               value={s.orientation}
               onChange={(v) => update('orientation', v)}
               options={[
-                { value: 'default', label: 'Natural orientation' },
+                { value: 'default', label: 'Natural' },
                 { value: 'rotate90', label: '90° clockwise' },
                 { value: 'rotate180', label: '180° upside down' },
                 { value: 'rotate270', label: '90° counterclockwise' },
               ]}
             />
-            <Select
+            <Segments
               label="Digit animation"
+              columns={2}
               value={s.animationMode}
               onChange={(v) => update('animationMode', v)}
               options={[

@@ -114,12 +114,18 @@ export function Segments<T extends string>({
   value,
   options,
   onChange,
+  columns,
 }: {
   label: string;
   value: T;
   options: { value: T; label: string }[];
   onChange: (v: T) => void;
+  /** Lay the options out as a wrapping grid instead of one row. For sets too
+   *  wide to sit side by side. Never more columns than there are options, so a
+   *  short set fills its row instead of trailing empty tracks. */
+  columns?: number;
 }) {
+  const cols = columns && Math.min(columns, options.length);
   return (
     <div className="setting-field">
       <span className="field-label">{label}</span>
@@ -131,6 +137,12 @@ export function Segments<T extends string>({
           if (v) onChange(v as T);
         }}
         className="ui-segments"
+        data-columns={cols}
+        style={
+          cols
+            ? ({ '--segment-columns': cols } as React.CSSProperties)
+            : undefined
+        }
       >
         {options.map((o) => (
           <ToggleGroup.Item
@@ -143,34 +155,6 @@ export function Segments<T extends string>({
         ))}
       </ToggleGroup.Root>
     </div>
-  );
-}
-export function Select<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (v: T) => void;
-}) {
-  return (
-    <label className="setting-field">
-      <span className="field-label">{label}</span>
-      <select
-        className="ui-input"
-        value={value}
-        onChange={(e) => onChange(e.target.value as T)}
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
   );
 }
 export function Color({
