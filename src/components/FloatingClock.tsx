@@ -1,39 +1,44 @@
-import React from 'react'
-import { motion, useMotionValue } from 'framer-motion'
-import { Clock } from '@/components/Clock'
-import type { ClockSettings } from '@/store/settings'
-import type { DriftOffset } from '@/lib/amoledSaver'
+import React from 'react';
+import { motion, useMotionValue } from 'framer-motion';
+import { Clock } from '@/components/Clock';
+import type { ClockSettings } from '@/store/settings';
+import type { DriftOffset } from '@/lib/amoledSaver';
 
 interface FloatingClockProps {
-  settings: ClockSettings
-  time: string
-  ampm: string
-  topText?: string
-  bottomText?: string
-  showTopText?: boolean
-  showBottomText?: boolean
-  driftOffset: DriftOffset
-  prefersReducedMotion: boolean
-  refreshKey: number
-  onTransformChange: (x: number, y: number, scale: number, rotation: number) => void
+  settings: ClockSettings;
+  time: string;
+  ampm: string;
+  topText?: string;
+  bottomText?: string;
+  showTopText?: boolean;
+  showBottomText?: boolean;
+  driftOffset: DriftOffset;
+  prefersReducedMotion: boolean;
+  refreshKey: number;
+  onTransformChange: (
+    x: number,
+    y: number,
+    scale: number,
+    rotation: number
+  ) => void;
 }
 
 // Snap angle to nearest cardinal if within this many degrees
-const SNAP_THRESHOLD = 12
-const CARDINALS = [0, 90, 180, 270, -90, -180, 360]
+const SNAP_THRESHOLD = 12;
+const CARDINALS = [0, 90, 180, 270, -90, -180, 360];
 
 function snapRotation(deg: number): number {
   for (const c of CARDINALS) {
-    if (Math.abs(deg - c) < SNAP_THRESHOLD) return c
+    if (Math.abs(deg - c) < SNAP_THRESHOLD) return c;
   }
-  return deg
+  return deg;
 }
 
 // Approximate half-dimensions of the floating clock container for converting % <-> px.
 // At scale=1 the container is 400×180px, which gives a comfortable clock display
 // that users can then pinch-zoom up or down.
-const FLOAT_HALF_W = 200 // half of 400px container width
-const FLOAT_HALF_H = 90  // half of 180px container height
+const FLOAT_HALF_W = 200; // half of 400px container width
+const FLOAT_HALF_H = 90; // half of 180px container height
 
 export const FloatingClock: React.FC<FloatingClockProps> = ({
   settings,
@@ -49,52 +54,62 @@ export const FloatingClock: React.FC<FloatingClockProps> = ({
   onTransformChange,
 }) => {
   const initX = React.useRef(
-    (window.innerWidth * settings.clockFloatX) / 100 - FLOAT_HALF_W,
-  )
+    (window.innerWidth * settings.clockFloatX) / 100 - FLOAT_HALF_W
+  );
   const initY = React.useRef(
-    (window.innerHeight * settings.clockFloatY) / 100 - FLOAT_HALF_H,
-  )
+    (window.innerHeight * settings.clockFloatY) / 100 - FLOAT_HALF_H
+  );
 
-  const x = useMotionValue(initX.current)
-  const y = useMotionValue(initY.current)
-
-  const [scale, setScale] = React.useState(settings.clockFloatScale)
-  const [rotation, setRotation] = React.useState(settings.clockFloatRotation)
-  const scaleRef = React.useRef(settings.clockFloatScale)
-  const rotRef = React.useRef(settings.clockFloatRotation)
+  const x = useMotionValue(initX.current);
+  const y = useMotionValue(initY.current);
 
   React.useEffect(() => {
-    setScale(settings.clockFloatScale)
-    scaleRef.current = settings.clockFloatScale
-  }, [settings.clockFloatScale])
+    const sync = () => {
+      x.set((window.innerWidth * settings.clockFloatX) / 100 - FLOAT_HALF_W);
+      y.set((window.innerHeight * settings.clockFloatY) / 100 - FLOAT_HALF_H);
+    };
+    sync();
+    window.addEventListener('resize', sync);
+    return () => window.removeEventListener('resize', sync);
+  }, [settings.clockFloatX, settings.clockFloatY, x, y]);
+
+  const [scale, setScale] = React.useState(settings.clockFloatScale);
+  const [rotation, setRotation] = React.useState(settings.clockFloatRotation);
+  const scaleRef = React.useRef(settings.clockFloatScale);
+  const rotRef = React.useRef(settings.clockFloatRotation);
 
   React.useEffect(() => {
-    setRotation(settings.clockFloatRotation)
-    rotRef.current = settings.clockFloatRotation
-  }, [settings.clockFloatRotation])
+    setScale(settings.clockFloatScale);
+    scaleRef.current = settings.clockFloatScale;
+  }, [settings.clockFloatScale]);
+
+  React.useEffect(() => {
+    setRotation(settings.clockFloatRotation);
+    rotRef.current = settings.clockFloatRotation;
+  }, [settings.clockFloatRotation]);
 
   const gestureRef = React.useRef<{
-    startDist: number
-    startAngle: number
-    startScale: number
-    startRotation: number
-  } | null>(null)
+    startDist: number;
+    startAngle: number;
+    startScale: number;
+    startRotation: number;
+  } | null>(null);
 
   const saveTransform = React.useCallback(() => {
-    const pctX = ((x.get() + FLOAT_HALF_W) / window.innerWidth) * 100
-    const pctY = ((y.get() + FLOAT_HALF_H) / window.innerHeight) * 100
+    const pctX = ((x.get() + FLOAT_HALF_W) / window.innerWidth) * 100;
+    const pctY = ((y.get() + FLOAT_HALF_H) / window.innerHeight) * 100;
     onTransformChange(
       Math.max(0, Math.min(100, pctX)),
       Math.max(0, Math.min(100, pctY)),
       scaleRef.current,
-      rotRef.current,
-    )
-  }, [x, y, onTransformChange])
+      rotRef.current
+    );
+  }, [x, y, onTransformChange]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
-      const t0 = e.touches[0]
-      const t1 = e.touches[1]
+      const t0 = e.touches[0];
+      const t1 = e.touches[1];
       gestureRef.current = {
         startDist: Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY),
         startAngle:
@@ -102,41 +117,45 @@ export const FloatingClock: React.FC<FloatingClockProps> = ({
           (180 / Math.PI),
         startScale: scaleRef.current,
         startRotation: rotRef.current,
-      }
+      };
     }
-  }
+  };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 2 && gestureRef.current) {
-      e.preventDefault()
-      const t0 = e.touches[0]
-      const t1 = e.touches[1]
-      const dx = t1.clientX - t0.clientX
-      const dy = t1.clientY - t0.clientY
-      const dist = Math.hypot(dx, dy)
-      const angle = Math.atan2(dy, dx) * (180 / Math.PI)
+      e.preventDefault();
+      const t0 = e.touches[0];
+      const t1 = e.touches[1];
+      const dx = t1.clientX - t0.clientX;
+      const dy = t1.clientY - t0.clientY;
+      const dist = Math.hypot(dx, dy);
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
       const newScale = Math.max(
         0.15,
-        Math.min(6, gestureRef.current.startScale * (dist / gestureRef.current.startDist)),
-      )
+        Math.min(
+          6,
+          gestureRef.current.startScale * (dist / gestureRef.current.startDist)
+        )
+      );
       const rawRotation =
-        gestureRef.current.startRotation + (angle - gestureRef.current.startAngle)
-      const newRotation = snapRotation(rawRotation)
+        gestureRef.current.startRotation +
+        (angle - gestureRef.current.startAngle);
+      const newRotation = snapRotation(rawRotation);
 
-      scaleRef.current = newScale
-      rotRef.current = newRotation
-      setScale(newScale)
-      setRotation(newRotation)
+      scaleRef.current = newScale;
+      rotRef.current = newRotation;
+      setScale(newScale);
+      setRotation(newRotation);
     }
-  }
+  };
 
   const handleTouchEnd = () => {
     if (gestureRef.current) {
-      gestureRef.current = null
-      saveTransform()
+      gestureRef.current = null;
+      saveTransform();
     }
-  }
+  };
 
   return (
     <motion.div
@@ -146,6 +165,7 @@ export const FloatingClock: React.FC<FloatingClockProps> = ({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
       className="fixed z-30 touch-none cursor-grab active:cursor-grabbing"
       style={{
         x,
@@ -173,6 +193,8 @@ export const FloatingClock: React.FC<FloatingClockProps> = ({
           strokeColor={settings.strokeColor}
           fontFamily={settings.customFontFamily || settings.fontFamily}
           scale={1}
+          autoFit={true}
+          edgePadding={8}
           offsetX={0}
           offsetY={0}
           driftOffset={driftOffset}
@@ -191,5 +213,5 @@ export const FloatingClock: React.FC<FloatingClockProps> = ({
         />
       </div>
     </motion.div>
-  )
-}
+  );
+};

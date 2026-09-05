@@ -6,6 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+.npm-cache
 
 node_modules
 dist
@@ -25,3 +26,8 @@ dist-ssr
 
 # TypeScript
 *.tsbuildinfo
+
+.npm-cache/
+playwright-report/
+test-results/
+artifacts/

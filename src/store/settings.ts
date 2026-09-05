@@ -1,27 +1,30 @@
-import { create } from 'zustand'
+import { create } from 'zustand';
+import { toast } from 'sonner';
 
-export type BackgroundMode = 'solid' | 'gradient' | 'image'
-export type ClockFormat = '24h' | '12h'
-export type Orientation = 'default' | 'rotate90' | 'rotate270' | 'rotate180'
+export type BackgroundMode = 'solid' | 'gradient' | 'image';
+export type ClockFormat = '24h' | '12h';
+export type Orientation = 'default' | 'rotate90' | 'rotate270' | 'rotate180';
 
 // ── Timer ─────────────────────────────────────────────────────────────────────
 
 export interface TimerConfig {
-  id: string
-  label: string
-  inputMode: 'duration' | 'datetime'
-  hours: number
-  minutes: number
-  targetDatetime: string
-  displayPosition: 'top' | 'bottom' | 'floating'
-  floatX: number
-  floatY: number
-  floatScale: number
-  floatRotation: number
-  useClockFont: boolean
+  id: string;
+  label: string;
+  inputMode: 'duration' | 'datetime';
+  hours: number;
+  minutes: number;
+  targetDatetime: string;
+  displayPosition: 'top' | 'bottom' | 'floating';
+  floatX: number;
+  floatY: number;
+  floatScale: number;
+  floatRotation: number;
+  useClockFont: boolean;
 }
 
-function makeTimerConfig(partial?: Partial<Omit<TimerConfig, 'id'>>): TimerConfig {
+function makeTimerConfig(
+  partial?: Partial<Omit<TimerConfig, 'id'>>
+): TimerConfig {
   return {
     id: `timer-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     label: 'Timer',
@@ -36,7 +39,7 @@ function makeTimerConfig(partial?: Partial<Omit<TimerConfig, 'id'>>): TimerConfi
     floatRotation: 0,
     useClockFont: false,
     ...partial,
-  }
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -53,6 +56,9 @@ export interface ClockSettings {
   bgScale: number;
   bgOffsetX: number;
   bgOffsetY: number;
+  backgroundPattern: 'none' | 'dots' | 'grid' | 'diagonal' | 'image';
+  patternOpacity: number;
+  patternSize: number;
 
   // Clock appearance
   clockMode: 'solid' | 'gradient';
@@ -69,6 +75,8 @@ export interface ClockSettings {
 
   // Scale & Position (used when clockFloating is false)
   scale: number;
+  autoFit: boolean;
+  edgePadding: number;
   offsetX: number;
   offsetY: number;
 
@@ -83,7 +91,17 @@ export interface ClockSettings {
   showSeconds: boolean;
   clockFormat: ClockFormat;
   orientation: Orientation;
-  animationMode: 'slide-v' | 'slide-h' | 'fade' | 'zoom' | 'flip-v' | 'flip-h' | 'blur' | 'bounce' | 'rotate' | 'none';
+  animationMode:
+    | 'slide-v'
+    | 'slide-h'
+    | 'fade'
+    | 'zoom'
+    | 'flip-v'
+    | 'flip-h'
+    | 'blur'
+    | 'bounce'
+    | 'rotate'
+    | 'none';
   autoHideControls: boolean;
   ampmPosition: 'before' | 'after' | 'top' | 'bottom';
   pulseColon: boolean;
@@ -122,6 +140,9 @@ const DEFAULT_SETTINGS: ClockSettings = {
   bgScale: 1.1,
   bgOffsetX: 50,
   bgOffsetY: 50,
+  backgroundPattern: 'none',
+  patternOpacity: 0.12,
+  patternSize: 32,
   clockMode: 'solid',
   clockColor: '#ffffff',
   clockGradientStart: '#ffffff',
@@ -134,6 +155,8 @@ const DEFAULT_SETTINGS: ClockSettings = {
   customFontFamily: '',
   fontWeight: 700,
   scale: 1,
+  autoFit: true,
+  edgePadding: 16,
   offsetX: 0,
   offsetY: 0,
   clockFloating: false,
@@ -164,88 +187,100 @@ const DEFAULT_SETTINGS: ClockSettings = {
 
 const normalizeOrientation = (value: unknown): Orientation => {
   if (value === 'rotate90' || value === 'rotate270' || value === 'rotate180') {
-    return value as Orientation
+    return value as Orientation;
   }
 
   switch (value) {
     case 'default':
     case 'auto':
     case 'portrait':
-      return 'default'
+      return 'default';
     case 'landscape':
-      return 'rotate90'
+      return 'rotate90';
     case 'portrait-secondary':
-      return 'rotate180'
+      return 'rotate180';
     case 'landscape-secondary':
-      return 'rotate270'
+      return 'rotate270';
     default:
-      return 'default'
+      return 'default';
   }
-}
+};
 
 interface SettingsStore {
-  settings: ClockSettings
+  settings: ClockSettings;
   updateSetting: <K extends keyof ClockSettings>(
     key: K,
     value: ClockSettings[K]
-  ) => void
-  updateMultiple: (updates: Partial<ClockSettings>) => void
-  resetToDefaults: () => void
-  loadSettings: () => void
-  flushPersist: () => void
-  addSavedFont: (font: string) => void
-  removeSavedFont: (font: string) => void
-  hideCuratedFont: (fontValue: string) => void
-  resetHiddenFonts: () => void
+  ) => void;
+  updateMultiple: (updates: Partial<ClockSettings>) => void;
+  resetToDefaults: () => void;
+  loadSettings: () => void;
+  flushPersist: () => void;
+  addSavedFont: (font: string) => void;
+  removeSavedFont: (font: string) => void;
+  hideCuratedFont: (fontValue: string) => void;
+  resetHiddenFonts: () => void;
   // Timer CRUD
-  addTimer: (partial?: Partial<Omit<TimerConfig, 'id'>>) => void
-  removeTimer: (id: string) => void
-  updateTimer: (id: string, updates: Partial<TimerConfig>) => void
+  addTimer: (partial?: Partial<Omit<TimerConfig, 'id'>>) => void;
+  removeTimer: (id: string) => void;
+  updateTimer: (id: string, updates: Partial<TimerConfig>) => void;
 }
 
-const STORAGE_KEY = 'app.clock.settings.v1'
+const STORAGE_KEY = 'app.clock.settings.v1';
 
-let persistTimeoutId: ReturnType<typeof setTimeout> | null = null
+function persistSettings(json: string): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, json);
+  } catch {
+    toast.error(
+      'Settings could not be saved. Device storage may be full or disabled.',
+      { id: 'settings-storage' }
+    );
+  }
+}
+let persistTimeoutId: ReturnType<typeof setTimeout> | null = null;
 function schedulePersist(get: () => SettingsStore) {
-  if (persistTimeoutId !== null) clearTimeout(persistTimeoutId)
+  if (persistTimeoutId !== null) clearTimeout(persistTimeoutId);
   persistTimeoutId = setTimeout(() => {
-    persistTimeoutId = null
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(get().settings))
-  }, 500)
+    persistTimeoutId = null;
+    persistSettings(JSON.stringify(get().settings));
+  }, 500);
 }
 
 function loadInitialSettings(): ClockSettings {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY)
+    const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      const parsed = JSON.parse(stored)
-      let migratedTimers: TimerConfig[] = parsed.timers ?? []
+      const parsed = JSON.parse(stored);
+      let migratedTimers: TimerConfig[] = parsed.timers ?? [];
       if (!parsed.timers && parsed.timerEnabled) {
-        migratedTimers = [makeTimerConfig({
-          label: 'Timer',
-          inputMode: parsed.timerInputMode ?? 'duration',
-          hours: parsed.timerHours ?? 0,
-          minutes: parsed.timerMinutes ?? 5,
-          targetDatetime: parsed.timerTargetDatetime ?? '',
-          displayPosition: parsed.timerDisplayPosition ?? 'bottom',
-          floatX: parsed.timerFloatX ?? 50,
-          floatY: parsed.timerFloatY ?? 80,
-          floatScale: parsed.timerFloatScale ?? 1,
-          floatRotation: parsed.timerFloatRotation ?? 0,
-          useClockFont: false,
-        })]
+        migratedTimers = [
+          makeTimerConfig({
+            label: 'Timer',
+            inputMode: parsed.timerInputMode ?? 'duration',
+            hours: parsed.timerHours ?? 0,
+            minutes: parsed.timerMinutes ?? 5,
+            targetDatetime: parsed.timerTargetDatetime ?? '',
+            displayPosition: parsed.timerDisplayPosition ?? 'bottom',
+            floatX: parsed.timerFloatX ?? 50,
+            floatY: parsed.timerFloatY ?? 80,
+            floatScale: parsed.timerFloatScale ?? 1,
+            floatRotation: parsed.timerFloatRotation ?? 0,
+            useClockFont: false,
+          }),
+        ];
       }
       return {
         ...DEFAULT_SETTINGS,
         ...parsed,
         timers: migratedTimers,
         orientation: normalizeOrientation(parsed.orientation),
-      }
+      };
     }
   } catch {
     // ignore parse errors, fall back to defaults
   }
-  return DEFAULT_SETTINGS
+  return DEFAULT_SETTINGS;
 }
 
 /**
@@ -259,50 +294,50 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   updateSetting: (key, value) => {
     set((state) => ({
       settings: { ...state.settings, [key]: value },
-    }))
-    schedulePersist(get)
+    }));
+    schedulePersist(get);
   },
 
   updateMultiple: (updates) => {
     set((state) => ({
       settings: { ...state.settings, ...updates },
-    }))
-    schedulePersist(get)
+    }));
+    schedulePersist(get);
   },
 
   resetToDefaults: () => {
-    set({ settings: DEFAULT_SETTINGS })
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SETTINGS))
+    set({ settings: DEFAULT_SETTINGS });
+    persistSettings(JSON.stringify(DEFAULT_SETTINGS));
   },
 
   loadSettings: () => {
-    const loaded = loadInitialSettings()
-    set({ settings: loaded })
+    const loaded = loadInitialSettings();
+    set({ settings: loaded });
   },
 
   flushPersist: () => {
     if (persistTimeoutId !== null) {
-      clearTimeout(persistTimeoutId)
-      persistTimeoutId = null
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(get().settings))
+      clearTimeout(persistTimeoutId);
+      persistTimeoutId = null;
+      persistSettings(JSON.stringify(get().settings));
     }
   },
 
   addSavedFont: (font) => {
-    if (get().settings.savedFonts.includes(font)) return
-    const newSavedFonts = [...get().settings.savedFonts, font]
+    if (get().settings.savedFonts.includes(font)) return;
+    const newSavedFonts = [...get().settings.savedFonts, font];
     set((state) => ({
       settings: { ...state.settings, savedFonts: newSavedFonts },
-    }))
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(get().settings))
+    }));
+    persistSettings(JSON.stringify(get().settings));
   },
 
   removeSavedFont: (font) => {
-    const newSavedFonts = get().settings.savedFonts.filter((f) => f !== font)
+    const newSavedFonts = get().settings.savedFonts.filter((f) => f !== font);
     set((state) => ({
       settings: { ...state.settings, savedFonts: newSavedFonts },
-    }))
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(get().settings))
+    }));
+    persistSettings(JSON.stringify(get().settings));
   },
 
   hideCuratedFont: (fontValue: string) => {
@@ -312,40 +347,42 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       set((state) => ({
         settings: { ...state.settings, hiddenCuratedFonts: newHidden },
       }));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...get().settings, hiddenCuratedFonts: newHidden }));
+      persistSettings(
+        JSON.stringify({ ...get().settings, hiddenCuratedFonts: newHidden })
+      );
     }
   },
 
   resetHiddenFonts: () => {
     set((state) => ({
       settings: { ...state.settings, hiddenCuratedFonts: [] },
-    }))
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(get().settings))
+    }));
+    persistSettings(JSON.stringify(get().settings));
   },
 
   addTimer: (partial) => {
-    const { settings } = get()
-    const newTimer = makeTimerConfig(partial)
-    const newTimers = [...settings.timers, newTimer]
-    set((state) => ({ settings: { ...state.settings, timers: newTimers } }))
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...get().settings, timers: newTimers }))
+    const { settings } = get();
+    const newTimer = makeTimerConfig(partial);
+    const newTimers = [...settings.timers, newTimer];
+    set((state) => ({ settings: { ...state.settings, timers: newTimers } }));
+    persistSettings(JSON.stringify({ ...get().settings, timers: newTimers }));
   },
 
   removeTimer: (id) => {
-    const { settings } = get()
-    const newTimers = settings.timers.filter((t) => t.id !== id)
-    set((state) => ({ settings: { ...state.settings, timers: newTimers } }))
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...get().settings, timers: newTimers }))
+    const { settings } = get();
+    const newTimers = settings.timers.filter((t) => t.id !== id);
+    set((state) => ({ settings: { ...state.settings, timers: newTimers } }));
+    persistSettings(JSON.stringify({ ...get().settings, timers: newTimers }));
   },
 
   updateTimer: (id, updates) => {
-    const { settings } = get()
-    const newTimers = settings.timers.map((t) => t.id === id ? { ...t, ...updates } : t)
-    set((state) => ({ settings: { ...state.settings, timers: newTimers } }))
+    const { settings } = get();
+    const newTimers = settings.timers.map((t) =>
+      t.id === id ? { ...t, ...updates } : t
+    );
+    set((state) => ({ settings: { ...state.settings, timers: newTimers } }));
     // Debounced write: updateTimer is called on every keystroke in label/duration inputs,
     // so we defer the localStorage write to avoid excessive writes during rapid changes.
-    setTimeout(() => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(get().settings))
-    }, 300)
+    schedulePersist(get);
   },
-}))
+}));

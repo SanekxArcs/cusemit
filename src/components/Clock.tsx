@@ -1,290 +1,287 @@
-import React from 'react'
-import { AnimatePresence, motion } from 'framer-motion';
-import { cn } from '@/lib/cn'
-import { getFontFamilyCSS } from '@/lib/fonts'
-import { DriftOffset } from '@/lib/amoledSaver'
-import { AnimatedNumber } from './AnimatedNumber';
+import React from 'react';
+import { motion } from 'framer-motion';
+import { getFontFamilyCSS } from '@/lib/fonts';
+import {
+  fitInk,
+  measureInkLine,
+  translateLine,
+  unionInk,
+} from '@/lib/clockLayout';
+import type { DriftOffset } from '@/lib/amoledSaver';
+import type { ClockSettings } from '@/store/settings';
 
 interface ClockProps {
-  time: string
-  ampm?: string
-  ampmPosition?: 'before' | 'after' | 'top' | 'bottom'
-  clockMode: 'solid' | 'gradient'
-  color: string
-  gradientStart: string
-  gradientEnd: string
-  gradientAngle: number
-  showStroke: boolean
-  strokeWidth: number
-  strokeColor: string
-  fontFamily: string
-  scale: number
-  offsetX: number
-  offsetY: number
-  driftOffset: DriftOffset
-  prefersReducedMotion: boolean
-  fontWeight: number
-  refreshKey?: number
-  animationMode: 'slide-v' | 'slide-h' | 'fade' | 'zoom' | 'flip-v' | 'flip-h' | 'blur' | 'bounce' | 'rotate' | 'none'
-  topText?: string
-  bottomText?: string
-  showTopText?: boolean
-  showBottomText?: boolean
-  showSeconds?: boolean
-  pulseColon?: boolean
-  tabularNums?: boolean
-  tabularNumsFallback?: boolean
+  time: string;
+  ampm?: string;
+  ampmPosition?: ClockSettings['ampmPosition'];
+  clockMode: 'solid' | 'gradient';
+  color: string;
+  gradientStart: string;
+  gradientEnd: string;
+  gradientAngle: number;
+  showStroke: boolean;
+  strokeWidth: number;
+  strokeColor: string;
+  fontFamily: string;
+  fontWeight: number;
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+  driftOffset: DriftOffset;
+  prefersReducedMotion: boolean;
+  refreshKey?: number;
+  animationMode: ClockSettings['animationMode'];
+  topText?: string;
+  bottomText?: string;
+  showTopText?: boolean;
+  showBottomText?: boolean;
+  showSeconds?: boolean;
+  pulseColon?: boolean;
+  tabularNums?: boolean;
+  tabularNumsFallback?: boolean;
+  autoFit?: boolean;
+  edgePadding?: number;
+  driftMargin?: number;
 }
 
-export const Clock: React.FC<ClockProps> = ({
-  time,
-  ampm,
-  ampmPosition = 'after',
-  clockMode = 'solid',
-  color,
-  gradientStart,
-  gradientEnd,
-  gradientAngle,
-  showStroke,
-  strokeWidth,
-  strokeColor,
-  fontFamily,
-  scale,
-  offsetX,
-  offsetY,
-  driftOffset,
-  prefersReducedMotion,
-  fontWeight,
-  refreshKey = 0,
-  animationMode,
-  topText,
-  bottomText,
-  showTopText,
-  showBottomText,
-  showSeconds,
-  pulseColon,
-  tabularNums = true,
-  tabularNumsFallback = false,
-}) => {
-  const fontFamilyCSS = getFontFamilyCSS(fontFamily)
-  const [fontSize, setFontSize] = React.useState(100)
-  const containerRef = React.useRef<HTMLDivElement>(null)
+const entrances = {
+  'slide-v': { y: 12, opacity: 0 },
+  'slide-h': { x: 12, opacity: 0 },
+  fade: { opacity: 0 },
+  zoom: { scale: 0.6, opacity: 0 },
+  'flip-v': { scaleY: 0, opacity: 0 },
+  'flip-h': { scaleX: 0, opacity: 0 },
+  blur: { filter: 'blur(5px)', opacity: 0 },
+  bounce: { y: 16, opacity: 0 },
+  rotate: { rotate: -30, opacity: 0 },
+  none: {},
+};
 
-  // Override logic: AM/PM takes priority over custom text at top/bottom
-  const isTopTextHidden = ampm && ampmPosition === 'top';
-  const isBottomTextHidden = ampm && ampmPosition === 'bottom';
-
+export function Clock(p: ClockProps) {
+  const container = React.useRef<HTMLDivElement>(null);
+  const [viewport, setViewport] = React.useState({ width: 1, height: 1 });
+  const [fontVersion, setFontVersion] = React.useState(0);
+  const gradientId = React.useId().replace(/:/g, '');
+  const font = getFontFamilyCSS(p.fontFamily);
+  React.useLayoutEffect(() => {
+    const element = container.current!;
+    const resize = () =>
+      setViewport({ width: element.clientWidth, height: element.clientHeight });
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   React.useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
+    let alive = true;
+    const refresh = () => {
+      if (alive) setFontVersion((v) => v + 1);
+    };
+    document.fonts.ready.then(refresh);
+    document.fonts.addEventListener('loadingdone', refresh);
+    return () => {
+      alive = false;
+      document.fonts.removeEventListener('loadingdone', refresh);
+    };
+  }, [font, p.fontWeight]);
 
-    const calculateFontSize = () => {
-      const measurer = document.createElement('div');
-      measurer.style.position = 'absolute';
-      measurer.style.visibility = 'hidden';
-      measurer.style.whiteSpace = 'nowrap';
-      measurer.style.fontFamily = fontFamilyCSS;
-      measurer.style.fontWeight = fontWeight.toString();
-      measurer.innerText = "88:88:88 PM"; // Reference max width
-      document.body.appendChild(measurer);
-
-      const availableWidth = container.clientWidth * 0.95;
-      const availableHeight = container.clientHeight * 0.95;
-
-      let min = 10;
-      let max = Math.max(container.clientWidth, container.clientHeight);
-      let optimalSize = 100;
-
-      while (min <= max) {
-        const mid = Math.floor((min + max) / 2);
-        measurer.style.fontSize = `${mid}px`;
-
-        if (measurer.offsetWidth <= availableWidth &&
-          measurer.offsetHeight <= availableHeight) {
-          optimalSize = mid;
-          min = mid + 1;
-        } else {
-          max = mid - 1;
-        }
-      }
-
-      document.body.removeChild(measurer);
-
-      setFontSize(optimalSize * scale);
+  const layout = React.useMemo(() => {
+    const context = document.createElement('canvas').getContext('2d')!;
+    const line = (text: string, size: number) =>
+      measureInkLine(context, text, font, p.fontWeight, size, !!p.tabularNums);
+    const main = line(p.time, 100);
+    const lines = [main];
+    const center = main.bounds.x + main.bounds.width / 2;
+    const above = (text: string, size = 26, opacity = 0.6) => {
+      const l = line(text, size);
+      lines.push(
+        translateLine(
+          l,
+          center - l.bounds.x - l.bounds.width / 2,
+          main.bounds.y - 12 - l.bounds.y - l.bounds.height,
+          opacity
+        )
+      );
+    };
+    const below = (text: string, size = 26, opacity = 0.6) => {
+      const l = line(text, size);
+      lines.push(
+        translateLine(
+          l,
+          center - l.bounds.x - l.bounds.width / 2,
+          main.bounds.y + main.bounds.height + 12 - l.bounds.y,
+          opacity
+        )
+      );
+    };
+    if (p.ampm && p.ampmPosition === 'top') above(p.ampm, 32, 0.8);
+    else if (p.showTopText && p.topText) above(p.topText);
+    if (p.ampm && p.ampmPosition === 'bottom') below(p.ampm, 32, 0.8);
+    else if (p.showBottomText && p.bottomText) below(p.bottomText);
+    if (p.ampm && p.ampmPosition !== 'top' && p.ampmPosition !== 'bottom') {
+      const l = line(p.ampm, 36);
+      lines.push(
+        translateLine(
+          l,
+          p.ampmPosition === 'before'
+            ? main.bounds.x - 14 - l.bounds.x - l.bounds.width
+            : main.bounds.x + main.bounds.width + 14 - l.bounds.x,
+          main.bounds.y +
+            main.bounds.height / 2 -
+            l.bounds.y -
+            l.bounds.height / 2,
+          0.8
+        )
+      );
     }
+    return { lines, bounds: unionInk(lines) };
+  }, [
+    font,
+    p.fontWeight,
+    p.time,
+    p.ampm,
+    p.ampmPosition,
+    p.topText,
+    p.bottomText,
+    p.showTopText,
+    p.showBottomText,
+    p.tabularNums,
+    p.tabularNumsFallback,
+    p.refreshKey,
+    fontVersion,
+  ]);
 
-    calculateFontSize()
-
-    const resizeObserver = new ResizeObserver(calculateFontSize)
-    resizeObserver.observe(container)
-
-    return () => resizeObserver.disconnect()
-  }, [scale, fontFamily, fontWeight, fontFamilyCSS, refreshKey])
-
-  const driftVariants = {
-    animate: {
-      x: `calc(${offsetX}% + ${(prefersReducedMotion ? 0 : driftOffset.x)}px)`,
-      y: `calc(${offsetY}% + ${(prefersReducedMotion ? 0 : driftOffset.y)}px)`,
-      transition: { duration: 0.3, ease: 'easeInOut' as const },
-    },
-  }
-
-  const textStyle: React.CSSProperties = clockMode === 'gradient' ? {
-    background: `linear-gradient(${gradientAngle}deg, ${gradientStart}, ${gradientEnd})`,
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    backgroundClip: 'text',
-    color: 'transparent',
-  } : {
-    color: color,
-  };
-
-  if (showStroke) {
-    (textStyle as any).WebkitTextStroke = `${strokeWidth}px ${strokeColor}`;
-  }
-
-  const styleKey = clockMode === 'gradient'
-    ? `${gradientStart}-${gradientEnd}-${gradientAngle}-${showStroke}-${strokeWidth}-${strokeColor}`
-    : `${color}-${showStroke}-${strokeWidth}-${strokeColor}`;
-
+  const fit = fitInk(
+    layout.bounds,
+    viewport.width,
+    viewport.height,
+    p.edgePadding ?? 16,
+    p.showStroke ? p.strokeWidth : 0,
+    p.driftMargin ?? 0
+  );
+  const scale = fit.scale * (p.autoFit === false ? p.scale : 1);
+  const x =
+    (viewport.width - layout.bounds.width * scale) / 2 -
+    layout.bounds.x * scale +
+    (p.autoFit === false ? (viewport.width * p.offsetX) / 100 : 0) +
+    (p.prefersReducedMotion ? 0 : p.driftOffset.x);
+  const y =
+    (viewport.height - layout.bounds.height * scale) / 2 -
+    layout.bounds.y * scale +
+    (p.autoFit === false ? (viewport.height * p.offsetY) / 100 : 0) +
+    (p.prefersReducedMotion ? 0 : p.driftOffset.y);
+  const angle = ((p.gradientAngle - 90) * Math.PI) / 180;
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        ref={containerRef}
-        className="absolute inset-0 flex items-center justify-center pointer-events-none clock-container"
-        animate="animate"
-        variants={driftVariants}
+    <div
+      ref={container}
+      className="clock-container absolute inset-0 pointer-events-none"
+    >
+      <svg
+        className="clock-svg"
+        width="100%"
+        height="100%"
+        role="img"
+        aria-label={[
+          p.time,
+          p.ampm,
+          p.showTopText ? p.topText : '',
+          p.showBottomText ? p.bottomText : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
       >
-        <div
-          className="relative leading-none flex items-center justify-center"
-          style={{
-            fontSize: `${fontSize}px`,
-            fontFamily: fontFamilyCSS,
-            fontWeight: fontWeight,
-          }}
-        >
-          {/* Top Custom Text */}
-          {showTopText && topText && !isTopTextHidden && (
-            <div
-              className="absolute bottom-full mb-[0.2em] left-1/2 -translate-x-1/2 whitespace-nowrap"
-              style={{
-                fontSize: '0.3em',
-              }}
-            >
-              <div className="flex items-center justify-center">
-                {Array.from(topText).map((char, index) => (
-                  <AnimatedNumber
-                    key={`top-${index}-${styleKey}`}
-                    value={char}
-                    prefersReducedMotion={prefersReducedMotion}
-                    animationMode={animationMode}
-                    style={{ ...textStyle, opacity: 0.6 }}
-                    tabularNums={tabularNums}
-                    tabularNumsFallback={tabularNumsFallback}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Main Time */}
-          <div
-            className="flex items-center justify-center"
+        <defs>
+          <linearGradient
+            id={gradientId}
+            gradientUnits="userSpaceOnUse"
+            x1={
+              layout.bounds.x +
+              layout.bounds.width * (0.5 - Math.cos(angle) / 2)
+            }
+            y1={
+              layout.bounds.y +
+              layout.bounds.height * (0.5 - Math.sin(angle) / 2)
+            }
+            x2={
+              layout.bounds.x +
+              layout.bounds.width * (0.5 + Math.cos(angle) / 2)
+            }
+            y2={
+              layout.bounds.y +
+              layout.bounds.height * (0.5 + Math.sin(angle) / 2)
+            }
           >
-            {Array.from(time).map((char, index) => {
-              const isColon = char === ':';
-              const shouldPulse = isColon && pulseColon && !showSeconds && !prefersReducedMotion;
-
-              const content = (
-                <AnimatedNumber
-                  key={`time-${index}-${styleKey}`}
-                  value={char}
-                  prefersReducedMotion={prefersReducedMotion}
-                  animationMode={animationMode}
-                  style={textStyle}
-                  tabularNums={tabularNums}
-                  tabularNumsFallback={tabularNumsFallback}
-                />
-              );
-
-              if (shouldPulse) {
-                return (
-                  <motion.div
-                    key={`pulse-${index}-${styleKey}`}
+            <stop stopColor={p.gradientStart} />
+            <stop offset="1" stopColor={p.gradientEnd} />
+          </linearGradient>
+        </defs>
+        <g
+          transform={`translate(${x} ${y}) scale(${scale})`}
+          data-clock-ink={JSON.stringify(layout.bounds)}
+          data-fit-scale={scale}
+        >
+          {layout.lines.map((line, row) => (
+            <g key={row}>
+              {line.glyphs.map((glyph, index) => (
+                <g key={index}>
+                  <motion.text
+                    key={glyph.char}
+                    initial={
+                      p.prefersReducedMotion
+                        ? false
+                        : entrances[p.animationMode]
+                    }
                     animate={{
-                      opacity: [1, 0.2, 1],
+                      x: 0,
+                      y: 0,
+                      scale: 1,
+                      scaleX: 1,
+                      scaleY: 1,
+                      rotate: 0,
+                      filter: 'blur(0px)',
+                      opacity: glyph.opacity,
                     }}
                     transition={{
-                      duration: 1,
-                      repeat: Infinity,
-                      ease: "easeInOut",
+                      duration: p.prefersReducedMotion ? 0 : 0.3,
+                      type: p.animationMode === 'bounce' ? 'spring' : 'tween',
                     }}
-                    className="flex items-center justify-center"
+                    className={
+                      glyph.char === ':' &&
+                      p.pulseColon &&
+                      !p.showSeconds &&
+                      !p.prefersReducedMotion
+                        ? 'pulse-colon'
+                        : undefined
+                    }
+                    x={glyph.x}
+                    y={glyph.y}
+                    fontFamily={font}
+                    fontWeight={p.fontWeight}
+                    fontSize={glyph.size}
+                    style={{
+                      fontKerning: 'none',
+                      fontVariantNumeric: 'normal',
+                      transformBox: 'fill-box',
+                      transformOrigin: 'center',
+                    }}
+                    fill={
+                      p.clockMode === 'gradient'
+                        ? `url(#${gradientId})`
+                        : p.color
+                    }
+                    stroke={p.showStroke ? p.strokeColor : undefined}
+                    strokeWidth={p.showStroke ? p.strokeWidth / scale : 0}
+                    paintOrder="stroke"
+                    xmlSpace="preserve"
                   >
-                    {content}
-                  </motion.div>
-                );
-              }
-
-              return content;
-            })}
-          </div>
-
-          {/* Bottom Custom Text */}
-          {showBottomText && bottomText && !isBottomTextHidden && (
-            <div
-              className="absolute top-full mt-[0.2em] left-1/2 -translate-x-1/2 whitespace-nowrap"
-              style={{
-                fontSize: '0.3em',
-              }}
-            >
-              <div className="flex items-center justify-center">
-                {Array.from(bottomText).map((char, index) => (
-                  <AnimatedNumber
-                    key={`bottom-${index}-${styleKey}`}
-                    value={char}
-                    prefersReducedMotion={prefersReducedMotion}
-                    animationMode={animationMode}
-                    style={{ ...textStyle, opacity: 0.6 }}
-                    tabularNums={tabularNums}
-                    tabularNumsFallback={tabularNumsFallback}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Absolute AM/PM Indicator */}
-          {ampm && (
-            <div
-              className={cn(
-                "absolute whitespace-nowrap transition-all duration-300",
-                ampmPosition === 'before' && "right-full mr-[0.2em] transform-none",
-                ampmPosition === 'after' && "left-full ml-[0.2em] transform-none",
-                ampmPosition === 'top' && "bottom-full mb-[0.1em] left-1/2 -translate-x-1/2",
-                ampmPosition === 'bottom' && "top-full mt-[0.1em] left-1/2 -translate-x-1/2"
-              )}
-              style={{
-                fontSize: (ampmPosition === 'top' || ampmPosition === 'bottom') ? '0.35em' : '0.45em',
-              }}
-            >
-              <div className="flex items-center justify-center">
-                {Array.from(ampm).map((char, index) => (
-                  <AnimatedNumber
-                    key={`ampm-${index}-${styleKey}`}
-                    value={char}
-                    prefersReducedMotion={prefersReducedMotion}
-                    animationMode={animationMode}
-                    style={{ ...textStyle, opacity: 0.8 }}
-                    tabularNums={tabularNums}
-                    tabularNumsFallback={tabularNumsFallback}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </motion.div>
-    </AnimatePresence>
+                    {glyph.char}
+                  </motion.text>
+                </g>
+              ))}
+            </g>
+          ))}
+        </g>
+      </svg>
+    </div>
   );
 }
