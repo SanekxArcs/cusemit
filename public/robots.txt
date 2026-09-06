@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Allow: /api/og
+
+Sitemap: https://cusemit.o-d.dev/sitemap.xml

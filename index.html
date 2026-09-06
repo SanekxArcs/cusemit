@@ -4,23 +4,48 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
-    <meta name="description" content="Cusemit - A premium, highly customizable digital wall clock designed for AMOLED/OLED displays with advanced burn-in protection, custom fonts, and exquisite gradients." />
-    <meta name="keywords" content="digital clock, amoled, oled, wall clock, minimalist clock, fullscreen clock, screen saver, burn-in protection, pwa, offline clock" />
+    <meta name="description" content="Make time yours with Cusemit, a free fullscreen clock with custom fonts, colors, countdown timers, and AMOLED settings. Install it and use it offline." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://cusemit.o-d.dev/" />
     <meta name="author" content="Sanekx" />
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://cusemit.vercel.app/" />
-    <meta property="og:title" content="Cusemit - Premium AMOLED Digital Clock" />
-    <meta property="og:description" content="Fullscreen digital clock with dynamic gradients, custom fonts, and OLED protection features. Works offline." />
-    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:url" content="https://cusemit.o-d.dev/" />
+    <meta property="og:site_name" content="Cusemit" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="Cusemit — Your Fullscreen Clock & Timers" />
+    <meta property="og:description" content="Your time. Your fonts. Your colors. A free fullscreen clock with countdown timers, AMOLED settings, and offline support." />
+    <meta property="og:image" content="https://cusemit.o-d.dev/api/og" />
+    <meta property="og:image:secure_url" content="https://cusemit.o-d.dev/api/og" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Cusemit fullscreen clock showing the UTC time and date when this preview was generated." />
 
     <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://cusemit.vercel.app/" />
-    <meta property="twitter:title" content="Cusemit - Premium AMOLED Digital Clock" />
-    <meta property="twitter:description" content="Fullscreen digital clock with dynamic gradients, custom fonts, and OLED protection features. Works offline." />
-    <meta property="twitter:image" content="/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Cusemit — Your Fullscreen Clock & Timers" />
+    <meta name="twitter:description" content="Your time. Your fonts. Your colors. A free fullscreen clock with countdown timers, AMOLED settings, and offline support." />
+    <meta name="twitter:image" content="https://cusemit.o-d.dev/api/og" />
+    <meta name="twitter:image:alt" content="Cusemit fullscreen clock showing the UTC time and date when this preview was generated." />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "@id": "https://cusemit.o-d.dev/#app",
+        "name": "Cusemit",
+        "url": "https://cusemit.o-d.dev/",
+        "description": "A free fullscreen digital clock with custom fonts, colors, countdown timers, AMOLED settings, and offline PWA support.",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires JavaScript and a modern web browser.",
+        "isAccessibleForFree": true,
+        "inLanguage": "en",
+        "image": "https://cusemit.o-d.dev/og-image.png",
+        "featureList": ["Fullscreen digital clock", "Custom fonts and colors", "Countdown timers", "AMOLED settings", "Offline support", "Installable PWA"]
+      }
+    </script>
 
     <!-- Apple Web App -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -41,10 +66,17 @@
     <link rel="icon" type="image/png" href="/clock-96.png" />
     <link rel="apple-touch-icon" href="/clock-192.png" />
     
-    <title>Cusemit</title>
+    <title>Cusemit — Free Fullscreen Clock & Countdown Timers</title>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <main>
+        <h1>Cusemit — Fullscreen Clock &amp; Countdown Timers</h1>
+        <p>A free digital clock with custom fonts, colors, countdown timers, and AMOLED settings. Install Cusemit for offline use on your phone, tablet, or desktop.</p>
+        <p>Enable JavaScript to see the current time and customize your clock.</p>
+      </main>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
 
   </body>

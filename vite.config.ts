@@ -1,9 +1,16 @@
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, type Connect } from 'vite';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import ogHandler from './api/og.js';
+
+// The same handler runs on Vercel and in local dev/production previews.
+const ogMiddleware: Connect.NextHandleFunction = (request, response, next) => {
+  if (new URL(request.url || '/', 'http://localhost').pathname !== '/api/og') return next();
+  void ogHandler(request, response).catch(next);
+};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -11,6 +18,11 @@ const __dirname = dirname(__filename);
 export default defineConfig({
   plugins: [
     react(),
+    {
+      name: 'clock-share-image',
+      configureServer(server) { server.middlewares.use(ogMiddleware); },
+      configurePreviewServer(server) { server.middlewares.use(ogMiddleware); },
+    },
     {
       name: 'offline-app-shell',
       apply: 'build',

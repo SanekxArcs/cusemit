@@ -1,7 +1,8 @@
 {
-  "name": "Digital Clock - Fullscreen Time Display",
-  "short_name": "Clock",
-  "description": "Minimal fullscreen digital clock with customizable settings, AMOLED burn-in protection, and offline support",
+  "id": "/",
+  "name": "Cusemit - Fullscreen Clock & Timers",
+  "short_name": "Cusemit",
+  "description": "A free fullscreen clock with custom fonts, colors, countdown timers, AMOLED settings, and offline support.",
   "start_url": "/",
   "scope": "/",
   "display": "fullscreen",
@@ -39,4 +40,3 @@
     }
   ]
 }
-
