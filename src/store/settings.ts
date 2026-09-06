@@ -122,6 +122,10 @@ export interface ClockSettings {
   // Custom Labels
   topText: string;
   bottomText: string;
+  topTextSize: number;
+  bottomTextSize: number;
+  topTextColor: string;
+  bottomTextColor: string;
   showTopText: boolean;
   showBottomText: boolean;
 
@@ -180,6 +184,10 @@ const DEFAULT_SETTINGS: ClockSettings = {
   amoledMeshType: 'pixel',
   topText: '',
   bottomText: '',
+  topTextSize: 26,
+  bottomTextSize: 26,
+  topTextColor: '',
+  bottomTextColor: '',
   showTopText: false,
   showBottomText: false,
   tabularNums: true,

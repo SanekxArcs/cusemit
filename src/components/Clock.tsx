@@ -35,6 +35,10 @@ interface ClockProps {
   animationMode: ClockSettings['animationMode'];
   topText?: string;
   bottomText?: string;
+  topTextSize?: number;
+  bottomTextSize?: number;
+  topTextColor?: string;
+  bottomTextColor?: string;
   showTopText?: boolean;
   showBottomText?: boolean;
   showSeconds?: boolean;
@@ -212,8 +216,9 @@ export function Clock(p: ClockProps) {
     const main = line(p.time, 100);
     const lines = [main];
     const center = main.bounds.x + main.bounds.width / 2;
-    const above = (text: string, size = 26, opacity = 0.6) => {
+    const above = (text: string, size = 26, opacity = 0.6, color?: string) => {
       const l = line(text, size);
+      l.glyphs.forEach((glyph) => { glyph.color = color; });
       lines.push(
         translateLine(
           l,
@@ -223,8 +228,9 @@ export function Clock(p: ClockProps) {
         )
       );
     };
-    const below = (text: string, size = 26, opacity = 0.6) => {
+    const below = (text: string, size = 26, opacity = 0.6, color?: string) => {
       const l = line(text, size);
+      l.glyphs.forEach((glyph) => { glyph.color = color; });
       lines.push(
         translateLine(
           l,
@@ -235,9 +241,11 @@ export function Clock(p: ClockProps) {
       );
     };
     if (p.ampm && p.ampmPosition === 'top') above(p.ampm, 32, 0.8);
-    else if (p.showTopText && p.topText) above(p.topText);
+    else if (p.showTopText && p.topText)
+      above(p.topText, p.topTextSize ?? 26, p.topTextColor ? 1 : 0.6, p.topTextColor);
     if (p.ampm && p.ampmPosition === 'bottom') below(p.ampm, 32, 0.8);
-    else if (p.showBottomText && p.bottomText) below(p.bottomText);
+    else if (p.showBottomText && p.bottomText)
+      below(p.bottomText, p.bottomTextSize ?? 26, p.bottomTextColor ? 1 : 0.6, p.bottomTextColor);
     if (p.ampm && p.ampmPosition !== 'top' && p.ampmPosition !== 'bottom') {
       const l = line(p.ampm, 36);
       lines.push(
@@ -263,6 +271,10 @@ export function Clock(p: ClockProps) {
     p.ampmPosition,
     p.topText,
     p.bottomText,
+    p.topTextSize,
+    p.bottomTextSize,
+    p.topTextColor,
+    p.bottomTextColor,
     p.showTopText,
     p.showBottomText,
     p.tabularNums,
@@ -309,7 +321,7 @@ export function Clock(p: ClockProps) {
       fontWeight={p.fontWeight}
       fontSize={glyph.size}
       style={{ fontKerning: 'none', fontVariantNumeric: 'normal' }}
-      fill={p.clockMode === 'gradient' ? `url(#${gradientId})` : p.color}
+      fill={glyph.color || (p.clockMode === 'gradient' ? `url(#${gradientId})` : p.color)}
       stroke={p.showStroke ? p.strokeColor : undefined}
       strokeWidth={p.showStroke ? p.strokeWidth / scale : 0}
       paintOrder="stroke"
@@ -447,9 +459,9 @@ export function Clock(p: ClockProps) {
                           width={Math.max(1, glyph.size * 0.08)}
                           height={line.bounds.height}
                           fill={
-                            p.clockMode === 'gradient'
+                            glyph.color || (p.clockMode === 'gradient'
                               ? `url(#${gradientId})`
-                              : p.color
+                              : p.color)
                           }
                         />
                       )}

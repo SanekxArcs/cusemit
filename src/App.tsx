@@ -386,6 +386,10 @@ export function App() {
                 animationMode={settings.animationMode}
                 topText={effectiveTopText}
                 bottomText={effectiveBottomText}
+                topTextSize={settings.topTextSize}
+                bottomTextSize={settings.bottomTextSize}
+                topTextColor={settings.topTextColor}
+                bottomTextColor={settings.bottomTextColor}
                 showTopText={effectiveShowTopText}
                 showBottomText={effectiveShowBottomText}
                 showSeconds={settings.showSeconds}

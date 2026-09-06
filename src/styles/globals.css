@@ -664,6 +664,11 @@ select:focus-visible,
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.font-option .font-name-preview {
+  font-size: 17px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
 .font-option > button:last-child {
   min-height: 36px;
   height: 36px;

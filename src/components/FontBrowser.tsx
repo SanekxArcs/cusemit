@@ -20,6 +20,27 @@ import {
 import { useSettingsStore } from '@/store/settings';
 import { Button, Input } from './ui/controls';
 
+function FontName({ name }: { name: string }) {
+  const preview = React.useRef<HTMLSpanElement>(null);
+  const [ready, setReady] = React.useState(false);
+  React.useEffect(() => {
+    let alive = true;
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      observer.disconnect();
+      const weights = CURATED_FONTS.find((f) => f.label === name)?.weights ?? [400, 700];
+      loadGoogleFont(name, weights)
+        .then(() => document.fonts.load(`400 17px ${getFontFamilyCSS(name)}`, name))
+        .then(() => { if (alive) setReady(true); })
+        .catch(() => { /* Keep the name readable if an unsaved font is offline. */ });
+    }, { root: preview.current?.closest('.font-library'), rootMargin: '60px' });
+    if (preview.current) observer.observe(preview.current);
+    return () => { alive = false; observer.disconnect(); };
+  }, [name]);
+  return <span ref={preview} className="font-name-preview" data-font-ready={ready}
+    style={{ fontFamily: getFontFamilyCSS(name), fontWeight: 400 }}>{name}</span>;
+}
+
 export function FontBrowser() {
   const {
     settings,
@@ -135,7 +156,7 @@ export function FontBrowser() {
             >
               12:48
             </strong>
-            <span>{active}</span>
+            <span style={{ fontFamily: getFontFamilyCSS(active) }}>{active}</span>
           </div>
           <Button
             variant="ghost"
@@ -242,7 +263,7 @@ export function FontBrowser() {
                 onClick={() => choose(name)}
                 aria-pressed={name === active}
               >
-                <span>{name}</span>
+                <FontName name={name} />
                 {name === active && <Check size={15} />}
               </Button>
               <Button

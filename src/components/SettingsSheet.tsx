@@ -542,25 +542,58 @@ export function SettingsSheet({
           <Section title="Labels">
             {toggle('showTopText', 'Top label')}
             {s.showTopText && (
-              <Input
-                aria-label="Top label text"
-                placeholder="Make room for what matters"
-                value={s.topText}
-                maxLength={120}
-                onChange={(e) => update('topText', e.target.value)}
-              />
+              <>
+                <Input
+                  aria-label="Top label text"
+                  placeholder="Make room for what matters"
+                  value={s.topText}
+                  maxLength={120}
+                  onChange={(e) => update('topText', e.target.value)}
+                />
+                <Range
+                  label="Top label size"
+                  value={s.topTextSize}
+                  min={8}
+                  max={80}
+                  unit="%"
+                  onChange={(v) => update('topTextSize', v)}
+                />
+                <Toggle
+                  label="Use clock color for top label"
+                  checked={!s.topTextColor}
+                  onChange={(v) => update('topTextColor', v ? '' : s.clockColor)}
+                />
+                {s.topTextColor && color('topTextColor', 'Top label color')}
+              </>
             )}
             {toggle('showBottomText', 'Bottom label')}
             {s.showBottomText && (
-              <Input
-                aria-label="Bottom label text"
-                placeholder="One thing at a time"
-                value={s.bottomText}
-                maxLength={120}
-                onChange={(e) => update('bottomText', e.target.value)}
-              />
+              <>
+                <Input
+                  aria-label="Bottom label text"
+                  placeholder="One thing at a time"
+                  value={s.bottomText}
+                  maxLength={120}
+                  onChange={(e) => update('bottomText', e.target.value)}
+                />
+                <Range
+                  label="Bottom label size"
+                  value={s.bottomTextSize}
+                  min={8}
+                  max={80}
+                  unit="%"
+                  onChange={(v) => update('bottomTextSize', v)}
+                />
+                <Toggle
+                  label="Use clock color for bottom label"
+                  checked={!s.bottomTextColor}
+                  onChange={(v) => update('bottomTextColor', v ? '' : s.clockColor)}
+                />
+                {s.bottomTextColor && color('bottomTextColor', 'Bottom label color')}
+              </>
             )}
             <p className="setting-note">
+              Label sizes are relative to the clock digits.{' '}
               Timers and AM/PM take priority when they share a label position.
               Automatic fit includes visible labels.
             </p>

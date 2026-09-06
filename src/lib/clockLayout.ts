@@ -10,6 +10,7 @@ export interface ClockGlyph {
   y: number;
   size: number;
   opacity: number;
+  color?: string;
 }
 export interface InkLine {
   glyphs: ClockGlyph[];
