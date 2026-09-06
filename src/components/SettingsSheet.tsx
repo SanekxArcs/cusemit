@@ -503,6 +503,7 @@ export function SettingsSheet({
               onChange={(v) => update('animationMode', v)}
               options={[
                 { value: 'none', label: 'None' },
+                { value: 'flow', label: 'Number flow' },
                 { value: 'slide-v', label: 'Slide vertically' },
                 { value: 'slide-h', label: 'Slide horizontally' },
                 { value: 'fade', label: 'Fade' },

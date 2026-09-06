@@ -119,6 +119,144 @@ for (const [font, size, extra] of [
   );
 }
 
+// A ticking glyph must animate in place. Framer's `x`/`y` are transform keys,
+// so animating them on an element that also carries `x`/`y` SVG attributes
+// seeds the transform from those attributes -- the seconds used to fly in from
+// most of a screen away, worst on the rightmost digits.
+for (const mode of ['fade', 'slide-v', 'zoom', 'none']) {
+  test('ticking digit animates in place - ' + mode, async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    // Deliberately not setup(): it pins the clock, and this needs a real tick.
+    await page.addInitScript(
+      ({ key, mode }) => {
+        if (!localStorage.getItem(key))
+          localStorage.setItem(
+            key,
+            JSON.stringify({
+              autoHideControls: false,
+              solidColor: '#000000',
+              showSeconds: true,
+              animationMode: mode,
+            })
+          );
+      },
+      { key, mode }
+    );
+    await page.goto('/');
+    await expect(page.locator('.clock-svg')).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    const { maxStray, glyphWidth } = await page.evaluate(async () => {
+      const last = () => {
+        const t = document.querySelectorAll('.clock-svg text');
+        return t[t.length - 1];
+      };
+      const startChar = last().textContent;
+      await new Promise((done) => {
+        const iv = setInterval(() => {
+          if (last().textContent !== startChar) {
+            clearInterval(iv);
+            done();
+          }
+        }, 16);
+      });
+      const lefts = [];
+      const t0 = performance.now();
+      await new Promise((done) => {
+        const step = () => {
+          lefts.push(last().getBoundingClientRect().left);
+          if (performance.now() - t0 < 600) requestAnimationFrame(step);
+          else done();
+        };
+        requestAnimationFrame(step);
+      });
+      const rest = last().getBoundingClientRect();
+      return {
+        glyphWidth: rest.width,
+        maxStray: Math.max(...lefts.map((l) => Math.abs(l - rest.left))),
+      };
+    });
+    // Scaling about a centre may shift the box by up to half a glyph; flying in
+    // from a user-space offset put it whole screen-widths out.
+    expect(
+      maxStray,
+      mode + ' strayed ' + Math.round(maxStray) + 'px from rest'
+    ).toBeLessThan(glyphWidth);
+  });
+}
+
+// 'flow' rolls the outgoing and incoming digits together through a clip slot,
+// odometer style. The slot must stay filled the whole way, or the digit blinks.
+test('flow keeps the digit slot filled while rolling', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.addInitScript(
+    ({ key }) => {
+      if (!localStorage.getItem(key))
+        localStorage.setItem(
+          key,
+          JSON.stringify({
+            autoHideControls: false,
+            solidColor: '#000000',
+            showSeconds: true,
+            animationMode: 'flow',
+          })
+        );
+    },
+    { key }
+  );
+  await page.goto('/');
+  await expect(page.locator('.clock-svg')).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  const frames = await page.evaluate(async () => {
+    const chars = () =>
+      [...document.querySelectorAll('.clock-svg text')]
+        .map((t) => t.textContent)
+        .join('');
+    const start = chars();
+    await new Promise((done) => {
+      const iv = setInterval(() => {
+        if (chars() !== start) {
+          clearInterval(iv);
+          done();
+        }
+      }, 4);
+    });
+    const out = [];
+    const t0 = performance.now();
+    await new Promise((done) => {
+      const step = () => {
+        const g = document.querySelector('.clock-svg g[clip-path]');
+        if (g) {
+          const id = g.getAttribute('clip-path').slice(5, -1);
+          const rect = document.getElementById(id).querySelector('rect');
+          const top = parseFloat(rect.getAttribute('y'));
+          const bottom = top + parseFloat(rect.getAttribute('height'));
+          const inner = g.querySelector('g');
+          const m = new DOMMatrix(getComputedStyle(inner).transform);
+          let covered = 0;
+          for (const t of inner.querySelectorAll('text')) {
+            const b = t.getBBox();
+            covered += Math.max(
+              0,
+              Math.min(bottom, b.y + b.height + m.f) - Math.max(top, b.y + m.f)
+            );
+          }
+          out.push({ slot: bottom - top, covered });
+        }
+        if (performance.now() - t0 < 700) requestAnimationFrame(step);
+        else done();
+      };
+      requestAnimationFrame(step);
+    });
+    return out;
+  });
+  expect(frames.length, 'never caught a roll').toBeGreaterThan(3);
+  const worst = frames.reduce((a, f) => (f.covered < a.covered ? f : a));
+  expect(
+    worst.covered,
+    'slot only ' + Math.round(worst.covered) + '/' + worst.slot + ' filled'
+  ).toBeGreaterThan(worst.slot * 0.9);
+});
+
 test('section controls, manual values, floating reset and mobile reload persist', async ({
   page,
 }) => {

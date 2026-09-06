@@ -402,6 +402,11 @@ select:focus-visible,
   display: grid;
   grid-template-columns: repeat(var(--segment-columns), minmax(0, 1fr));
 }
+/* An odd count in two columns would leave the last option orphaned beside a
+   gap; let it take the whole row instead. */
+.ui-segments[data-columns='2'] > :last-child:nth-child(odd) {
+  grid-column: span 2;
+}
 .ui-segment {
   flex: 1;
   padding: 9px 3px;

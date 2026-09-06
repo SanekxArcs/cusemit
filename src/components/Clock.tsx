@@ -6,6 +6,7 @@ import {
   measureInkLine,
   translateLine,
   unionInk,
+  type ClockGlyph,
 } from '@/lib/clockLayout';
 import type { DriftOffset } from '@/lib/amoledSaver';
 import type { ClockSettings } from '@/store/settings';
@@ -45,6 +46,9 @@ interface ClockProps {
 }
 
 const entrances = {
+  // 'flow' does not use an entrance -- it rolls the outgoing and incoming
+  // glyphs together through a clip slot. See renderGlyph below.
+  flow: {},
   'slide-v': { y: 12, opacity: 0 },
   'slide-h': { x: 12, opacity: 0 },
   fade: { opacity: 0 },
@@ -151,6 +155,20 @@ export function Clock(p: ClockProps) {
     fontVersion,
   ]);
 
+  // What each slot showed on the previous commit, so 'flow' can roll the
+  // outgoing glyph out as the incoming one arrives. Read during render, so it
+  // still holds the old value while the new one is being drawn.
+  const shown = React.useRef(new Map<string, string>());
+  React.useEffect(() => {
+    const next = new Map<string, string>();
+    layout.lines.forEach((line, row) => {
+      line.glyphs.forEach((glyph, index) => {
+        next.set(`${row}:${index}`, glyph.char);
+      });
+    });
+    shown.current = next;
+  });
+
   const fit = fitInk(
     layout.bounds,
     viewport.width,
@@ -171,6 +189,30 @@ export function Clock(p: ClockProps) {
     (p.autoFit === false ? (viewport.height * p.offsetY) / 100 : 0) +
     (p.prefersReducedMotion ? 0 : p.driftOffset.y);
   const angle = ((p.gradientAngle - 90) * Math.PI) / 180;
+  // One glyph's <text>. `char` and `y` are passed in rather than taken from the
+  // glyph so 'flow' can draw the outgoing character above the incoming one.
+  const glyphText = (glyph: ClockGlyph, char: string, y: number) => (
+    <text
+      className={
+        char === ':' && p.pulseColon && !p.showSeconds && !p.prefersReducedMotion
+          ? 'pulse-colon'
+          : undefined
+      }
+      x={glyph.x}
+      y={y}
+      fontFamily={font}
+      fontWeight={p.fontWeight}
+      fontSize={glyph.size}
+      style={{ fontKerning: 'none', fontVariantNumeric: 'normal' }}
+      fill={p.clockMode === 'gradient' ? `url(#${gradientId})` : p.color}
+      stroke={p.showStroke ? p.strokeColor : undefined}
+      strokeWidth={p.showStroke ? p.strokeWidth / scale : 0}
+      paintOrder="stroke"
+      xmlSpace="preserve"
+    >
+      {char}
+    </text>
+  );
   return (
     <div
       ref={container}
@@ -222,62 +264,85 @@ export function Clock(p: ClockProps) {
         >
           {layout.lines.map((line, row) => (
             <g key={row}>
-              {line.glyphs.map((glyph, index) => (
-                <g key={index}>
-                  <motion.text
-                    key={glyph.char}
-                    initial={
-                      p.prefersReducedMotion
-                        ? false
-                        : entrances[p.animationMode]
-                    }
-                    animate={{
-                      x: 0,
-                      y: 0,
-                      scale: 1,
-                      scaleX: 1,
-                      scaleY: 1,
-                      rotate: 0,
-                      filter: 'blur(0px)',
-                      opacity: glyph.opacity,
-                    }}
-                    transition={{
-                      duration: p.prefersReducedMotion ? 0 : 0.3,
-                      type: p.animationMode === 'bounce' ? 'spring' : 'tween',
-                    }}
-                    className={
-                      glyph.char === ':' &&
-                      p.pulseColon &&
-                      !p.showSeconds &&
-                      !p.prefersReducedMotion
-                        ? 'pulse-colon'
-                        : undefined
-                    }
-                    x={glyph.x}
-                    y={glyph.y}
-                    fontFamily={font}
-                    fontWeight={p.fontWeight}
-                    fontSize={glyph.size}
-                    style={{
-                      fontKerning: 'none',
-                      fontVariantNumeric: 'normal',
-                      transformBox: 'fill-box',
-                      transformOrigin: 'center',
-                    }}
-                    fill={
-                      p.clockMode === 'gradient'
-                        ? `url(#${gradientId})`
-                        : p.color
-                    }
-                    stroke={p.showStroke ? p.strokeColor : undefined}
-                    strokeWidth={p.showStroke ? p.strokeWidth / scale : 0}
-                    paintOrder="stroke"
-                    xmlSpace="preserve"
-                  >
-                    {glyph.char}
-                  </motion.text>
-                </g>
-              ))}
+              {line.glyphs.map((glyph, index) => {
+                const was = shown.current.get(`${row}:${index}`);
+                // Roll only digits that actually changed. A colon has nothing
+                // to count through, and a glyph on its first paint has no
+                // outgoing twin to roll away.
+                if (
+                  p.animationMode === 'flow' &&
+                  !p.prefersReducedMotion &&
+                  /\d/.test(glyph.char) &&
+                  was !== undefined &&
+                  was !== glyph.char
+                ) {
+                  // One ink-height of travel puts the outgoing glyph's foot
+                  // exactly on the slot's ceiling: an unbroken drum, no gap.
+                  const roll = line.bounds.height;
+                  const slot = `${gradientId}-slot-${row}-${index}`;
+                  return (
+                    <g key={index} clipPath={`url(#${slot})`}>
+                      <defs>
+                        <clipPath id={slot}>
+                          <rect
+                            x={glyph.x - glyph.size}
+                            y={line.bounds.y}
+                            width={glyph.size * 3}
+                            height={line.bounds.height}
+                          />
+                        </clipPath>
+                      </defs>
+                      <motion.g
+                        key={glyph.char}
+                        initial={{ y: roll }}
+                        animate={{ y: 0 }}
+                        transition={{
+                          type: 'spring',
+                          stiffness: 260,
+                          damping: 32,
+                          mass: 0.8,
+                        }}
+                      >
+                        {glyphText(glyph, glyph.char, glyph.y)}
+                        {glyphText(glyph, was, glyph.y - roll)}
+                      </motion.g>
+                    </g>
+                  );
+                }
+                return (
+                // The entrance animates this <g>, never the <text>. Framer's
+                // `x`/`y` are transform keys, and on an element that also has
+                // `x`/`y` SVG attributes it seeds them from those attributes --
+                // so a glyph would fly in from its own user-space offset.
+                // Keyed by char so a changed digit remounts and replays.
+                <motion.g
+                  key={`${index}-${glyph.char}`}
+                  initial={
+                    p.prefersReducedMotion ? false : entrances[p.animationMode]
+                  }
+                  animate={{
+                    x: 0,
+                    y: 0,
+                    scale: 1,
+                    scaleX: 1,
+                    scaleY: 1,
+                    rotate: 0,
+                    filter: 'blur(0px)',
+                    opacity: glyph.opacity,
+                  }}
+                  transition={{
+                    duration: p.prefersReducedMotion ? 0 : 0.3,
+                    type: p.animationMode === 'bounce' ? 'spring' : 'tween',
+                  }}
+                  style={{
+                    transformBox: 'fill-box',
+                    transformOrigin: 'center',
+                  }}
+                >
+                  {glyphText(glyph, glyph.char, glyph.y)}
+                </motion.g>
+                );
+              })}
             </g>
           ))}
         </g>

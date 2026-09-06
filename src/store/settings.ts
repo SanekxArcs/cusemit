@@ -92,6 +92,7 @@ export interface ClockSettings {
   clockFormat: ClockFormat;
   orientation: Orientation;
   animationMode:
+    | 'flow'
     | 'slide-v'
     | 'slide-h'
     | 'fade'
