@@ -93,6 +93,8 @@ export interface ClockSettings {
   orientation: Orientation;
   animationMode:
     | 'flow'
+    | 'shuffle'
+    | 'type'
     | 'slide-v'
     | 'slide-h'
     | 'fade'

@@ -504,6 +504,8 @@ export function SettingsSheet({
               options={[
                 { value: 'none', label: 'None' },
                 { value: 'flow', label: 'Number flow' },
+                { value: 'shuffle', label: 'Shuffle' },
+                { value: 'type', label: 'Typewriter' },
                 { value: 'slide-v', label: 'Slide vertically' },
                 { value: 'slide-h', label: 'Slide horizontally' },
                 { value: 'fade', label: 'Fade' },

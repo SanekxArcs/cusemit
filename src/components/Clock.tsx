@@ -45,10 +45,12 @@ interface ClockProps {
   driftMargin?: number;
 }
 
+// These three drive themselves per glyph rather than entering as a whole:
+// 'flow' rolls a clipped drum, 'shuffle' cycles digits, 'type' blinks a caret.
 const entrances = {
-  // 'flow' does not use an entrance -- it rolls the outgoing and incoming
-  // glyphs together through a clip slot. See renderGlyph below.
   flow: {},
+  shuffle: {},
+  type: {},
   'slide-v': { y: 12, opacity: 0 },
   'slide-h': { x: 12, opacity: 0 },
   fade: { opacity: 0 },
@@ -60,6 +62,61 @@ const entrances = {
   rotate: { rotate: -30, opacity: 0 },
   none: {},
 };
+
+const SHUFFLE_STEPS = 7;
+const SHUFFLE_MS = 45;
+const TYPE_CARET_MS = 130;
+const randomDigit = () => String(Math.floor(Math.random() * 10));
+
+// Spins through random digits before landing on the real one, so a tick reads
+// like a departure board. Always settles on `char`, never on a random value.
+function ShuffleGlyph({
+  char,
+  render,
+}: {
+  char: string;
+  render: (c: string) => React.ReactElement;
+}) {
+  const [shown, setShown] = React.useState(char);
+  React.useEffect(() => {
+    let step = 0;
+    setShown(randomDigit());
+    const spin = setInterval(() => {
+      step += 1;
+      if (step >= SHUFFLE_STEPS) {
+        clearInterval(spin);
+        setShown(char);
+      } else setShown(randomDigit());
+    }, SHUFFLE_MS);
+    return () => clearInterval(spin);
+  }, [char]);
+  return render(shown);
+}
+
+// Blinks a caret in the slot before the new digit lands. Skips the very first
+// paint: every glyph flashing at once on load reads as a glitch, not typing.
+function TypeGlyph({
+  char,
+  render,
+  caret,
+}: {
+  char: string;
+  render: (c: string) => React.ReactElement;
+  caret: () => React.ReactElement;
+}) {
+  const [typing, setTyping] = React.useState(false);
+  const painted = React.useRef(false);
+  React.useEffect(() => {
+    if (!painted.current) {
+      painted.current = true;
+      return;
+    }
+    setTyping(true);
+    const done = setTimeout(() => setTyping(false), TYPE_CARET_MS);
+    return () => clearTimeout(done);
+  }, [char]);
+  return typing ? caret() : render(char);
+}
 
 export function Clock(p: ClockProps) {
   const container = React.useRef<HTMLDivElement>(null);
@@ -307,6 +364,39 @@ export function Clock(p: ClockProps) {
                         {glyphText(glyph, was, glyph.y - roll)}
                       </motion.g>
                     </g>
+                  );
+                }
+                // Both drive themselves from the char they are handed, so they
+                // stay mounted across ticks and animate on change. Non-digits
+                // fall through and stay put.
+                if (
+                  !p.prefersReducedMotion &&
+                  /\d/.test(glyph.char) &&
+                  (p.animationMode === 'shuffle' || p.animationMode === 'type')
+                ) {
+                  const draw = (c: string) => glyphText(glyph, c, glyph.y);
+                  return p.animationMode === 'shuffle' ? (
+                    <ShuffleGlyph key={index} char={glyph.char} render={draw} />
+                  ) : (
+                    <TypeGlyph
+                      key={index}
+                      char={glyph.char}
+                      render={draw}
+                      caret={() => (
+                        <rect
+                          x={glyph.x + glyph.size * 0.06}
+                          y={line.bounds.y}
+                          width={Math.max(1, glyph.size * 0.08)}
+                          height={line.bounds.height}
+                          opacity={glyph.opacity}
+                          fill={
+                            p.clockMode === 'gradient'
+                              ? `url(#${gradientId})`
+                              : p.color
+                          }
+                        />
+                      )}
+                    />
                   );
                 }
                 return (
