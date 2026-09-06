@@ -45,6 +45,7 @@ function makeTimerConfig(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ClockSettings {
+  customColors: string[];
   // Background
   backgroundMode: BackgroundMode;
   solidColor: string;
@@ -133,6 +134,7 @@ export interface ClockSettings {
 }
 
 const DEFAULT_SETTINGS: ClockSettings = {
+  customColors: [],
   backgroundMode: 'solid',
   solidColor: '#1a1a1a',
   gradientStart: '#1a1a1a',
@@ -276,6 +278,11 @@ function loadInitialSettings(): ClockSettings {
       return {
         ...DEFAULT_SETTINGS,
         ...parsed,
+        customColors: Array.isArray(parsed.customColors)
+          ? [...new Set<string>(parsed.customColors.filter((c: unknown) =>
+              typeof c === 'string' && /^#[\da-f]{6}$/i.test(c)
+            ).map((c: string) => c.toLowerCase()))]
+          : [],
         timers: migratedTimers,
         orientation: normalizeOrientation(parsed.orientation),
       };

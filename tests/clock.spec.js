@@ -100,7 +100,9 @@ for (const [font, size, extra] of [
     'visible ink fits ' + font + ' ' + size + ' ' + JSON.stringify(extra),
     async ({ page }) => {
       await page.setViewportSize({ width: size[0], height: size[1] });
-      await setup(page, { fontFamily: font, ...extra });
+      // Natural spacing fits the current ink exactly. Equal-width mode reserves
+      // all possible digits instead, so a thin 1 can leave extra visible space.
+      await setup(page, { fontFamily: font, tabularNums: false, ...extra });
       // Use the public selector so the check includes font loading and the live renderer.
       await page
         .getByRole('button', { name: 'Clock settings', exact: true })
@@ -117,6 +119,51 @@ for (const [font, size, extra] of [
       await checkInk(page, extra.edgePadding ?? 16);
     }
   );
+}
+
+for (const font of ['Inter', 'Bebas Neue']) {
+  for (const showSeconds of [true, false]) {
+    test(`equal-width fit stays fixed through every digit and rollover - ${font}, seconds ${showSeconds}`, async ({ page }) => {
+      await page.setViewportSize({ width: 844, height: 390 });
+      await setup(page, { fontFamily: font, tabularNums: true, showSeconds });
+      await page.getByRole('button', { name: 'Clock settings', exact: true }).click();
+      await page.getByRole('button', { name: font, exact: true }).click();
+      await expect(page.locator('.font-status')).toContainText('Available offline', { timeout: 30000 });
+      await page.getByRole('button', { name: 'Close settings' }).click();
+
+      const ink = page.locator('[data-clock-ink]');
+      const main = ink.locator(':scope > g').first();
+      const geometry = () => ink.evaluate((g) => ({
+        bounds: g.getAttribute('data-clock-ink'),
+        transform: g.getAttribute('transform'),
+        scale: g.getAttribute('data-fit-scale'),
+        colons: [...g.querySelectorAll('text')]
+          .filter((t) => t.textContent === ':')
+          .map((t) => ({ x: t.getBoundingClientRect().x, y: t.getBoundingClientRect().y })),
+      }));
+      const initial = await geometry();
+      const times = Array.from({ length: 10 }, (_, digit) =>
+        showSeconds ? `11:11:1${digit}` : `11:1${digit}:00`
+      ).concat(['11:59:59', '12:00:00', '23:59:59', '00:00:00']);
+      for (const time of times) {
+        await page.clock.setFixedTime(new Date(`2026-09-06T${time}`));
+        await expect(main).toHaveText(showSeconds ? time : time.slice(0, 5));
+        expect(await geometry(), time).toEqual(initial);
+      }
+
+      // Stability must not prevent refitting when the available screen changes.
+      await page.setViewportSize({ width: 390, height: 844 });
+      await expect.poll(() => ink.getAttribute('data-fit-scale')).not.toBe(initial.scale);
+      const margins = await ink.evaluate((g) => {
+        const b = JSON.parse(g.getAttribute('data-clock-ink'));
+        const matrix = g.getScreenCTM();
+        const topLeft = new DOMPoint(b.x, b.y).matrixTransform(matrix);
+        const bottomRight = new DOMPoint(b.x + b.width, b.y + b.height).matrixTransform(matrix);
+        return [topLeft.x, topLeft.y, innerWidth - bottomRight.x, innerHeight - bottomRight.y];
+      });
+      expect(Math.min(...margins)).toBeCloseTo(16, 1);
+    });
+  }
 }
 
 // A ticking glyph must animate in place. Framer's `x`/`y` are transform keys,

@@ -62,36 +62,34 @@ export function useTimerArray(configs: TimerConfig[]): Record<string, TimerContr
   const configsKey = configs
     .map((c) => `${c.id}:${c.inputMode}:${c.hours}:${c.minutes}:${c.targetDatetime}`)
     .join('|')
+  const previousConfigsRef = React.useRef(configs)
 
   // Sync state when timer configs change (add / remove / modify settings)
   React.useEffect(() => {
+    const previousConfigs = new Map(previousConfigsRef.current.map((c) => [c.id, c]))
+    previousConfigsRef.current = configs
     setStates((prev) => {
       const next: Record<string, TimerState> = {}
       const newIds = new Set(configs.map((c) => c.id))
 
       for (const c of configs) {
         const existing = prev[c.id]
+        const previous = previousConfigs.get(c.id)
+        const durationChanged = !previous || previous.inputMode !== c.inputMode ||
+          previous.hours !== c.hours || previous.minutes !== c.minutes
 
         if (c.inputMode === 'datetime') {
+          endTimestampsRef.current[c.id] = null
           const ms = calcDatetimeMs(c)
           next[c.id] = { remainingMs: ms, isRunning: ms > 0, isExpired: isDatetimeExpired(c) }
-        } else if (!existing) {
-          // New timer – initialise to full duration
+        } else if (!existing || durationChanged) {
+          // Editing this timer prepares the entered duration immediately.
+          // Other timers and cosmetic edits must keep their current progress.
           const ms = calcDurationMs(c)
           next[c.id] = { remainingMs: ms, isRunning: false, isExpired: false }
           endTimestampsRef.current[c.id] = null
-        } else if (existing.isRunning) {
-          // Keep running state for active duration timers
-          next[c.id] = existing
         } else {
-          // Paused or expired – preserve progress; only cap if duration was reduced below remaining
-          const configMs = calcDurationMs(c)
-          if (existing.remainingMs > configMs) {
-            next[c.id] = { remainingMs: configMs, isRunning: false, isExpired: false }
-            endTimestampsRef.current[c.id] = null
-          } else {
-            next[c.id] = existing
-          }
+          next[c.id] = existing
         }
       }
 
@@ -126,7 +124,7 @@ export function useTimerArray(configs: TimerConfig[]): Record<string, TimerContr
           hasChanges = true
         } else if (state.isRunning) {
           const endTs = endTimestampsRef.current[c.id]
-          if (endTs !== null) {
+          if (endTs != null) {
             const ms = Math.max(0, endTs - Date.now())
             const isExpired = ms <= 0
             updates[c.id] = { remainingMs: ms, isRunning: !isExpired, isExpired }
@@ -159,9 +157,12 @@ export function useTimerArray(configs: TimerConfig[]): Record<string, TimerContr
       stableControlsRef.current[id] = {
         play() {
           const s = statesRef.current[id]
-          if (!s || s.isRunning || s.isExpired || s.remainingMs <= 0) return
-          endTimestampsRef.current[id] = Date.now() + s.remainingMs
-          setStates((prev) => ({ ...prev, [id]: { ...prev[id], isRunning: true } }))
+          const cfg = configsRef.current.find((c) => c.id === id)
+          if (!s || s.isRunning || !cfg || cfg.inputMode !== 'duration') return
+          const ms = s.isExpired || s.remainingMs <= 0 ? calcDurationMs(cfg) : s.remainingMs
+          if (ms <= 0) return
+          endTimestampsRef.current[id] = Date.now() + ms
+          setStates((prev) => ({ ...prev, [id]: { remainingMs: ms, isRunning: true, isExpired: false } }))
         },
         pause() {
           endTimestampsRef.current[id] = null

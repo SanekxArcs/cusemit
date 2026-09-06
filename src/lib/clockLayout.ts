@@ -28,9 +28,18 @@ export function measureInkLine(
 ): InkLine {
   context.font = `${weight} ${size}px ${font}`;
   context.fontKerning = 'none';
-  const digitWidth = Math.max(
-    ...Array.from('0123456789', (d) => context.measureText(d).width)
+  const digits = Array.from('0123456789', (d) => context.measureText(d));
+  const digitWidth = Math.max(...digits.map((d) => d.width));
+  // Equal advances alone are not enough: fitting the current ink still zooms
+  // and recenters on thin digits. Reserve every digit's ink inside each slot.
+  const digitLeft = Math.min(
+    ...digits.map((d) => (digitWidth - d.width) / 2 - d.actualBoundingBoxLeft)
   );
+  const digitRight = Math.max(
+    ...digits.map((d) => (digitWidth - d.width) / 2 + d.actualBoundingBoxRight)
+  );
+  const digitTop = Math.min(...digits.map((d) => -d.actualBoundingBoxAscent));
+  const digitBottom = Math.max(...digits.map((d) => d.actualBoundingBoxDescent));
   let cursor = 0,
     left = Infinity,
     right = -Infinity,
@@ -38,13 +47,23 @@ export function measureInkLine(
     bottom = -Infinity;
   const glyphs = Array.from(text, (char) => {
     const metrics = context.measureText(char);
-    const width = tabular && /\d/.test(char) ? digitWidth : metrics.width;
+    const fixedDigit = tabular && /\d/.test(char);
+    const width = fixedDigit ? digitWidth : metrics.width;
     const x = cursor + (width - metrics.width) / 2;
     if (char.trim()) {
-      left = Math.min(left, x - metrics.actualBoundingBoxLeft);
-      right = Math.max(right, x + metrics.actualBoundingBoxRight);
-      top = Math.min(top, -metrics.actualBoundingBoxAscent);
-      bottom = Math.max(bottom, metrics.actualBoundingBoxDescent);
+      left = Math.min(
+        left,
+        fixedDigit ? cursor + digitLeft : x - metrics.actualBoundingBoxLeft
+      );
+      right = Math.max(
+        right,
+        fixedDigit ? cursor + digitRight : x + metrics.actualBoundingBoxRight
+      );
+      top = Math.min(top, fixedDigit ? digitTop : -metrics.actualBoundingBoxAscent);
+      bottom = Math.max(
+        bottom,
+        fixedDigit ? digitBottom : metrics.actualBoundingBoxDescent
+      );
     }
     cursor += width;
     return { char, x, y: 0, size, opacity: 1 };

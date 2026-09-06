@@ -7,6 +7,7 @@ import {
   translateLine,
   unionInk,
   type ClockGlyph,
+  type InkBox,
 } from '@/lib/clockLayout';
 import type { DriftOffset } from '@/lib/amoledSaver';
 import type { ClockSettings } from '@/store/settings';
@@ -68,6 +69,66 @@ const SHUFFLE_MS = 45;
 const TYPE_CARET_MS = 130;
 const randomDigit = () => String(Math.floor(Math.random() * 10));
 
+// Own the outgoing digit until the roll finishes. Keeping this state in the
+// slot prevents timer ticks, font loading, or settings updates from removing it.
+function FlowGlyph({
+  char,
+  render,
+  bounds,
+  slot,
+  stroke,
+}: {
+  char: string;
+  render: (char: string, shift: number) => React.ReactElement;
+  bounds: InkBox;
+  slot: string;
+  stroke: number;
+}) {
+  const [frame, setFrame] = React.useState({
+    current: char,
+    previous: '',
+    revision: 0,
+  });
+  if (char !== frame.current) {
+    setFrame({
+      current: char,
+      previous: frame.current,
+      revision: frame.revision + 1,
+    });
+  }
+  if (!frame.previous) return render(frame.current, 0);
+  return (
+    <g clipPath={`url(#${slot})`} data-flow-slot>
+      <defs>
+        <clipPath id={slot}>
+          <rect
+            x={bounds.x - stroke}
+            y={bounds.y - stroke}
+            width={bounds.width + stroke * 2}
+            height={bounds.height + stroke * 2}
+          />
+        </clipPath>
+      </defs>
+      <motion.g
+        key={frame.revision}
+        initial={{ y: bounds.height }}
+        animate={{ y: 0 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 32, mass: 0.8 }}
+        onAnimationComplete={() =>
+          setFrame((current) =>
+            current.revision === frame.revision
+              ? { ...current, previous: '' }
+              : current
+          )
+        }
+      >
+        {render(frame.current, 0)}
+        {render(frame.previous, -bounds.height)}
+      </motion.g>
+    </g>
+  );
+}
+
 // Spins through random digits before landing on the real one, so a tick reads
 // like a departure board. Always settles on `char`, never on a random value.
 function ShuffleGlyph({
@@ -105,12 +166,10 @@ function TypeGlyph({
   caret: () => React.ReactElement;
 }) {
   const [typing, setTyping] = React.useState(false);
-  const painted = React.useRef(false);
+  const previous = React.useRef(char);
   React.useEffect(() => {
-    if (!painted.current) {
-      painted.current = true;
-      return;
-    }
+    if (previous.current === char) return;
+    previous.current = char;
     setTyping(true);
     const done = setTimeout(() => setTyping(false), TYPE_CARET_MS);
     return () => clearTimeout(done);
@@ -212,20 +271,6 @@ export function Clock(p: ClockProps) {
     fontVersion,
   ]);
 
-  // What each slot showed on the previous commit, so 'flow' can roll the
-  // outgoing glyph out as the incoming one arrives. Read during render, so it
-  // still holds the old value while the new one is being drawn.
-  const shown = React.useRef(new Map<string, string>());
-  React.useEffect(() => {
-    const next = new Map<string, string>();
-    layout.lines.forEach((line, row) => {
-      line.glyphs.forEach((glyph, index) => {
-        next.set(`${row}:${index}`, glyph.char);
-      });
-    });
-    shown.current = next;
-  });
-
   const fit = fitInk(
     layout.bounds,
     viewport.width,
@@ -251,7 +296,10 @@ export function Clock(p: ClockProps) {
   const glyphText = (glyph: ClockGlyph, char: string, y: number) => (
     <text
       className={
-        char === ':' && p.pulseColon && !p.showSeconds && !p.prefersReducedMotion
+        char === ':' &&
+        p.pulseColon &&
+        !p.showSeconds &&
+        !p.prefersReducedMotion
           ? 'pulse-colon'
           : undefined
       }
@@ -320,50 +368,60 @@ export function Clock(p: ClockProps) {
           data-fit-scale={scale}
         >
           {layout.lines.map((line, row) => (
-            <g key={row}>
+            <g
+              key={row}
+              opacity={line.glyphs[0]?.opacity ?? 1}
+              clipPath={
+                p.animationMode === 'shuffle' || p.animationMode === 'type'
+                  ? `url(#${gradientId}-row-${row})`
+                  : undefined
+              }
+            >
+              <defs>
+                <clipPath id={`${gradientId}-row-${row}`}>
+                  <rect
+                    x={
+                      line.bounds.x -
+                      (p.showStroke ? p.strokeWidth / scale / 2 : 0)
+                    }
+                    y={
+                      line.bounds.y -
+                      (p.showStroke ? p.strokeWidth / scale / 2 : 0)
+                    }
+                    width={
+                      line.bounds.width +
+                      (p.showStroke ? p.strokeWidth / scale : 0)
+                    }
+                    height={
+                      line.bounds.height +
+                      (p.showStroke ? p.strokeWidth / scale : 0)
+                    }
+                  />
+                </clipPath>
+              </defs>
               {line.glyphs.map((glyph, index) => {
-                const was = shown.current.get(`${row}:${index}`);
                 // Roll only digits that actually changed. A colon has nothing
                 // to count through, and a glyph on its first paint has no
                 // outgoing twin to roll away.
                 if (
                   p.animationMode === 'flow' &&
                   !p.prefersReducedMotion &&
-                  /\d/.test(glyph.char) &&
-                  was !== undefined &&
-                  was !== glyph.char
+                  /\d/.test(glyph.char)
                 ) {
                   // One ink-height of travel puts the outgoing glyph's foot
                   // exactly on the slot's ceiling: an unbroken drum, no gap.
-                  const roll = line.bounds.height;
                   const slot = `${gradientId}-slot-${row}-${index}`;
                   return (
-                    <g key={index} clipPath={`url(#${slot})`}>
-                      <defs>
-                        <clipPath id={slot}>
-                          <rect
-                            x={glyph.x - glyph.size}
-                            y={line.bounds.y}
-                            width={glyph.size * 3}
-                            height={line.bounds.height}
-                          />
-                        </clipPath>
-                      </defs>
-                      <motion.g
-                        key={glyph.char}
-                        initial={{ y: roll }}
-                        animate={{ y: 0 }}
-                        transition={{
-                          type: 'spring',
-                          stiffness: 260,
-                          damping: 32,
-                          mass: 0.8,
-                        }}
-                      >
-                        {glyphText(glyph, glyph.char, glyph.y)}
-                        {glyphText(glyph, was, glyph.y - roll)}
-                      </motion.g>
-                    </g>
+                    <FlowGlyph
+                      key={index}
+                      char={glyph.char}
+                      slot={slot}
+                      bounds={line.bounds}
+                      stroke={p.showStroke ? p.strokeWidth / scale / 2 : 0}
+                      render={(char, shift) =>
+                        glyphText(glyph, char, glyph.y + shift)
+                      }
+                    />
                   );
                 }
                 // Both drive themselves from the char they are handed, so they
@@ -388,7 +446,6 @@ export function Clock(p: ClockProps) {
                           y={line.bounds.y}
                           width={Math.max(1, glyph.size * 0.08)}
                           height={line.bounds.height}
-                          opacity={glyph.opacity}
                           fill={
                             p.clockMode === 'gradient'
                               ? `url(#${gradientId})`
@@ -400,37 +457,39 @@ export function Clock(p: ClockProps) {
                   );
                 }
                 return (
-                // The entrance animates this <g>, never the <text>. Framer's
-                // `x`/`y` are transform keys, and on an element that also has
-                // `x`/`y` SVG attributes it seeds them from those attributes --
-                // so a glyph would fly in from its own user-space offset.
-                // Keyed by char so a changed digit remounts and replays.
-                <motion.g
-                  key={`${index}-${glyph.char}`}
-                  initial={
-                    p.prefersReducedMotion ? false : entrances[p.animationMode]
-                  }
-                  animate={{
-                    x: 0,
-                    y: 0,
-                    scale: 1,
-                    scaleX: 1,
-                    scaleY: 1,
-                    rotate: 0,
-                    filter: 'blur(0px)',
-                    opacity: glyph.opacity,
-                  }}
-                  transition={{
-                    duration: p.prefersReducedMotion ? 0 : 0.3,
-                    type: p.animationMode === 'bounce' ? 'spring' : 'tween',
-                  }}
-                  style={{
-                    transformBox: 'fill-box',
-                    transformOrigin: 'center',
-                  }}
-                >
-                  {glyphText(glyph, glyph.char, glyph.y)}
-                </motion.g>
+                  // The entrance animates this <g>, never the <text>. Framer's
+                  // `x`/`y` are transform keys, and on an element that also has
+                  // `x`/`y` SVG attributes it seeds them from those attributes --
+                  // so a glyph would fly in from its own user-space offset.
+                  // Keyed by char so a changed digit remounts and replays.
+                  <motion.g
+                    key={`${index}-${glyph.char}`}
+                    initial={
+                      p.prefersReducedMotion
+                        ? false
+                        : entrances[p.animationMode]
+                    }
+                    animate={{
+                      x: 0,
+                      y: 0,
+                      scale: 1,
+                      scaleX: 1,
+                      scaleY: 1,
+                      rotate: 0,
+                      filter: 'blur(0px)',
+                      opacity: 1,
+                    }}
+                    transition={{
+                      duration: p.prefersReducedMotion ? 0 : 0.3,
+                      type: p.animationMode === 'bounce' ? 'spring' : 'tween',
+                    }}
+                    style={{
+                      transformBox: 'fill-box',
+                      transformOrigin: 'center',
+                    }}
+                  >
+                    {glyphText(glyph, glyph.char, glyph.y)}
+                  </motion.g>
                 );
               })}
             </g>

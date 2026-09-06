@@ -157,41 +157,6 @@ export function Segments<T extends string>({
     </div>
   );
 }
-export function Color({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const [draft, setDraft] = React.useState(value);
-  React.useEffect(() => setDraft(value), [value]);
-  return (
-    <label className="color-field">
-      <span>{label}</span>
-      <div>
-        <input
-          type="color"
-          aria-label={label}
-          value={/^#[\da-f]{6}$/i.test(value) ? value : '#ffffff'}
-          onChange={(e) => onChange(e.target.value)}
-        />
-        <Input
-          aria-label={label + ' hex'}
-          value={draft}
-          maxLength={7}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            if (/^#[\da-f]{6}$/i.test(e.target.value)) onChange(e.target.value);
-          }}
-          onBlur={() => setDraft(value)}
-        />
-      </div>
-    </label>
-  );
-}
 export function Section({
   title,
   children,

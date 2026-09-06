@@ -16,7 +16,6 @@ import { useSettingsStore, type ClockSettings } from '@/store/settings';
 import { CURATED_FONTS, normalizeFont } from '@/lib/fonts';
 import {
   Button,
-  Color,
   Input,
   Panel,
   Range,
@@ -25,6 +24,7 @@ import {
   Toggle,
 } from './ui/controls';
 import { FontBrowser } from './FontBrowser';
+import { ColorPicker as Color } from './ColorPicker';
 
 export type SettingsSection =
   'amoled' | 'background' | 'clock' | 'display' | 'position';
@@ -418,7 +418,7 @@ export function SettingsSheet({
             {toggle(
               'tabularNums',
               'Equal-width digits',
-              'Keep digit spacing consistent as time changes.'
+              'Keep spacing, size, and position steady as digits change.'
             )}
           </Section>
           <Section title="Clock color">
