@@ -20,6 +20,8 @@ export interface TimerConfig {
   floatScale: number;
   floatRotation: number;
   useClockFont: boolean;
+  showSeconds: boolean;
+  autoDelete: boolean;
 }
 
 function makeTimerConfig(
@@ -38,6 +40,8 @@ function makeTimerConfig(
     floatScale: 1,
     floatRotation: 0,
     useClockFont: false,
+    showSeconds: true,
+    autoDelete: false,
     ...partial,
   };
 }
@@ -265,7 +269,14 @@ function loadInitialSettings(): ClockSettings {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      let migratedTimers: TimerConfig[] = parsed.timers ?? [];
+      // Fill in fields added after a timer was persisted (e.g. showSeconds,
+      // autoDelete) so older saves get the current defaults.
+      let migratedTimers: TimerConfig[] = Array.isArray(parsed.timers)
+        ? parsed.timers.map((t: Partial<TimerConfig>) => ({
+            ...makeTimerConfig(),
+            ...t,
+          }))
+        : [];
       if (!parsed.timers && parsed.timerEnabled) {
         migratedTimers = [
           makeTimerConfig({

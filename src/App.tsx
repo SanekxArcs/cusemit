@@ -27,7 +27,7 @@ import { FloatingTimerWidget } from '@/components/TimerWidget';
 import { FloatingClock } from '@/components/FloatingClock';
 
 export function App() {
-  const { settings, loadSettings, flushPersist, updateMultiple, updateTimer } =
+  const { settings, loadSettings, flushPersist, updateMultiple, updateTimer, removeTimer } =
     useSettingsStore();
   const [settingsSection, setSettingsSection] =
     React.useState<SettingsSection | null>(null);
@@ -52,7 +52,13 @@ export function App() {
   useWakeLock();
 
   // ── Timers ───────────────────────────────────────────────────────────────────
-  const timerControls = useTimerArray(settings.timers);
+  const timerControls = useTimerArray(settings.timers, (id) => {
+    const cfg = settings.timers.find((t) => t.id === id);
+    if (cfg?.autoDelete) {
+      // Small delay so the "expired" state is visible for a moment before deletion
+      setTimeout(() => removeTimer(id), 800);
+    }
+  });
   // ─────────────────────────────────────────────────────────────────────────────
 
   const timerControlsRef = React.useRef(timerControls);
@@ -317,14 +323,14 @@ export function App() {
   const topTimerText =
     topLabelTimers.length > 0
       ? topLabelTimers
-          .map((t) => formatMs(timerControls[t.id]?.remainingMs ?? 0))
+          .map((t) => formatMs(timerControls[t.id]?.remainingMs ?? 0, t.showSeconds))
           .join(TIMER_LABEL_SEPARATOR)
       : undefined;
 
   const bottomTimerText =
     bottomLabelTimers.length > 0
       ? bottomLabelTimers
-          .map((t) => formatMs(timerControls[t.id]?.remainingMs ?? 0))
+          .map((t) => formatMs(timerControls[t.id]?.remainingMs ?? 0, t.showSeconds))
           .join(TIMER_LABEL_SEPARATOR)
       : undefined;
 

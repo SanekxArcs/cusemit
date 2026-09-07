@@ -57,7 +57,7 @@ export function TimerSheet({
               </Button>
             </div>
             <div className={'timer-readout ' + (expired ? 'expired' : '')}>
-              {formatMs(control?.remainingMs ?? 0)}
+              {formatMs(control?.remainingMs ?? 0, timer.showSeconds)}
               <small>
                 {expired
                   ? 'Time is up'
@@ -176,6 +176,16 @@ export function TimerSheet({
                 onChange={(v) => updateTimer(timer.id, { useClockFont: v })}
               />
             )}
+            <Toggle
+              label="Show seconds"
+              checked={timer.showSeconds ?? true}
+              onChange={(v) => updateTimer(timer.id, { showSeconds: v })}
+            />
+            <Toggle
+              label="Auto-delete when done"
+              checked={timer.autoDelete ?? false}
+              onChange={(v) => updateTimer(timer.id, { autoDelete: v })}
+            />
           </Section>
         );
       })}

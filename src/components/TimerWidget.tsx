@@ -82,7 +82,7 @@ export const FloatingTimerWidget: React.FC<FloatingTimerProps> = ({
   clockFontFamily,
   clockFontWeight,
 }) => {
-  const display = isExpired ? "Time's up!" : formatMs(remainingMs)
+  const display = isExpired ? "Time's up!" : formatMs(remainingMs, config.showSeconds ?? true)
   const isDuration = config.inputMode === 'duration'
 
   // Auto-hide controls

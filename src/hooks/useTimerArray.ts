@@ -33,8 +33,14 @@ function isDatetimeExpired(config: TimerConfig): boolean {
  * - duration timers: manually play/pause/reset
  *
  * Returns a Record<timerId, TimerControls> so callers can look up by id.
+ *
+ * @param configs  Array of timer configurations from the store.
+ * @param onExpire Called with the timer id when a timer first reaches 0.
  */
-export function useTimerArray(configs: TimerConfig[]): Record<string, TimerControls> {
+export function useTimerArray(
+  configs: TimerConfig[],
+  onExpire?: (id: string) => void,
+): Record<string, TimerControls> {
   const [states, setStates] = React.useState<Record<string, TimerState>>(() => {
     const init: Record<string, TimerState> = {}
     for (const c of configs) {
@@ -55,8 +61,13 @@ export function useTimerArray(configs: TimerConfig[]): Record<string, TimerContr
   // Stable refs used inside the interval to avoid stale closures
   const configsRef = React.useRef(configs)
   const statesRef = React.useRef(states)
+  const onExpireRef = React.useRef(onExpire)
   configsRef.current = configs
   statesRef.current = states
+  onExpireRef.current = onExpire
+
+  // Track which timer ids have already triggered onExpire (cleared on reset/play)
+  const firedExpireRef = React.useRef<Set<string>>(new Set())
 
   // Derived key that changes whenever config IDs or meaningful values change
   const configsKey = configs
@@ -68,6 +79,12 @@ export function useTimerArray(configs: TimerConfig[]): Record<string, TimerContr
   React.useEffect(() => {
     const previousConfigs = new Map(previousConfigsRef.current.map((c) => [c.id, c]))
     previousConfigsRef.current = configs
+
+    // Forget expire bookkeeping for timers that no longer exist (e.g. auto-deleted)
+    const liveIds = new Set(configs.map((c) => c.id))
+    for (const id of firedExpireRef.current) {
+      if (!liveIds.has(id)) firedExpireRef.current.delete(id)
+    }
     setStates((prev) => {
       const next: Record<string, TimerState> = {}
       const newIds = new Set(configs.map((c) => c.id))
@@ -112,6 +129,7 @@ export function useTimerArray(configs: TimerConfig[]): Record<string, TimerContr
       const currentStates = statesRef.current
       const updates: Record<string, TimerState> = {}
       let hasChanges = false
+      const newlyExpired: string[] = []
 
       for (const c of currentConfigs) {
         const state = currentStates[c.id]
@@ -121,6 +139,7 @@ export function useTimerArray(configs: TimerConfig[]): Record<string, TimerContr
           const ms = calcDatetimeMs(c)
           const isExpired = ms <= 0
           updates[c.id] = { remainingMs: ms, isRunning: !isExpired, isExpired }
+          if (isExpired && !firedExpireRef.current.has(c.id)) newlyExpired.push(c.id)
           hasChanges = true
         } else if (state.isRunning) {
           const endTs = endTimestampsRef.current[c.id]
@@ -128,7 +147,10 @@ export function useTimerArray(configs: TimerConfig[]): Record<string, TimerContr
             const ms = Math.max(0, endTs - Date.now())
             const isExpired = ms <= 0
             updates[c.id] = { remainingMs: ms, isRunning: !isExpired, isExpired }
-            if (isExpired) endTimestampsRef.current[c.id] = null
+            if (isExpired) {
+              endTimestampsRef.current[c.id] = null
+              if (!firedExpireRef.current.has(c.id)) newlyExpired.push(c.id)
+            }
             hasChanges = true
           }
         }
@@ -142,6 +164,14 @@ export function useTimerArray(configs: TimerConfig[]): Record<string, TimerContr
           }
           return next
         })
+      }
+
+      // Fire onExpire callbacks after state is queued (avoid calling inside setState)
+      if (newlyExpired.length > 0 && onExpireRef.current) {
+        for (const id of newlyExpired) {
+          firedExpireRef.current.add(id)
+          onExpireRef.current(id)
+        }
       }
     }, 200)
 
@@ -161,6 +191,7 @@ export function useTimerArray(configs: TimerConfig[]): Record<string, TimerContr
           if (!s || s.isRunning || !cfg || cfg.inputMode !== 'duration') return
           const ms = s.isExpired || s.remainingMs <= 0 ? calcDurationMs(cfg) : s.remainingMs
           if (ms <= 0) return
+          firedExpireRef.current.delete(id)
           endTimestampsRef.current[id] = Date.now() + ms
           setStates((prev) => ({ ...prev, [id]: { remainingMs: ms, isRunning: true, isExpired: false } }))
         },
@@ -170,6 +201,7 @@ export function useTimerArray(configs: TimerConfig[]): Record<string, TimerContr
         },
         reset() {
           endTimestampsRef.current[id] = null
+          firedExpireRef.current.delete(id)
           const cfg = configsRef.current.find((c) => c.id === id)
           if (!cfg) return
           const ms = calcDurationMs(cfg)
@@ -195,12 +227,13 @@ export function useTimerArray(configs: TimerConfig[]): Record<string, TimerContr
   return result
 }
 
-/** Format milliseconds as HH:MM:SS */
-export function formatMs(ms: number): string {
-  if (ms <= 0) return '00:00:00'
+/** Format milliseconds as HH:MM:SS (or HH:MM when showSeconds is false) */
+export function formatMs(ms: number, showSeconds = true): string {
+  if (ms <= 0) return showSeconds ? '00:00:00' : '00:00'
   const totalSeconds = Math.floor(ms / 1000)
   const h = Math.floor(totalSeconds / 3600)
   const m = Math.floor((totalSeconds % 3600) / 60)
   const s = totalSeconds % 60
-  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  const base = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+  return showSeconds ? `${base}:${s.toString().padStart(2, '0')}` : base
 }
