@@ -31,3 +31,8 @@ dist-ssr
 playwright-report/
 test-results/
 artifacts/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example

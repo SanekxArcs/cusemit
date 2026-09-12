@@ -1,5 +1,6 @@
 import { ExternalLink, Moon } from 'lucide-react';
 import { Panel, Section } from './ui/controls';
+import { SyncSection } from './SyncSection';
 
 export function InfoDialog({
   isOpen,
@@ -34,6 +35,7 @@ export function InfoDialog({
           hidden controls.
         </p>
       </Section>
+      <SyncSection />
       <Section title="Ready without internet">
         <p className="setting-note">
           Once the app has finished loading online, it can reopen offline. Save

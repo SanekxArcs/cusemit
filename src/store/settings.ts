@@ -141,7 +141,7 @@ export interface ClockSettings {
   timers: TimerConfig[];
 }
 
-const DEFAULT_SETTINGS: ClockSettings = {
+export const DEFAULT_SETTINGS: ClockSettings = {
   customColors: [],
   backgroundMode: 'solid',
   solidColor: '#1a1a1a',

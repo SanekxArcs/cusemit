@@ -12,13 +12,32 @@ The side rail opens AMOLED, Background, Clock, Display, and Positioning panels. 
 - **Backgrounds** include solid colors, gradients, local images, and texture overlays. AMOLED always uses a black base and hides base-color controls; optional textures/images still light pixels. Uploads are resized and stored locally.
 - **Display** contains time format, seconds, colon pulse, digit animation, rotation, fullscreen, auto-hide, and labels. Timer and AM/PM labels take priority at a shared position.
 
+## Syncing settings between devices
+
+About holds a sync panel backed by [Convex](https://convex.dev). Pressing **Create a sync code** stores this device's appearance settings under an eight-character code; entering that code on another device downloads them. Both devices then share the slot and can upload or download from it.
+
+Nothing transfers on its own. There is no polling, no subscription, and no connection held open — the app talks to Convex only while an Upload or Download button is being pressed, and Upload is disabled unless the syncable settings actually changed since the last sync.
+
+**AMOLED**, **Background**, **Clock**, and **Display** settings travel, along with saved fonts and custom colors. **Positioning**, the uploaded background image and its framing, and timers stay on each device, because a wall tablet and a phone share a look rather than a layout. `src/lib/syncableSettings.ts` holds the exact key list; a device on an older build ignores keys it does not know and keeps its own value for anything the payload omits.
+
+Each upload bumps a revision. If another device uploaded since this one last synced, the upload is refused and the panel offers a download or a deliberate replace, so a stale device cannot quietly overwrite newer settings. A code is the whole credential — anyone holding it can read and write that slot — so treat it like a shared password and disconnect when done.
+
+### Setting it up
+
+```sh
+npx convex dev          # provisions a deployment, writes .env.local, watches convex/
+```
+
+`convex/schema.ts` and `convex/settings.ts` hold the backend; `convex/_generated` is codegen and should not be edited. Copy `.env.example` to `.env` and fill in `CONVEX_DEPLOY_KEY` to deploy. Production builds need `VITE_CONVEX_URL` at build time, either from the host's environment variables or by wrapping the build: `npx convex deploy --cmd 'npm run build'`. Without that variable the sync panel reports that sync is unavailable and the rest of the app works unchanged.
+
 Existing settings and timer configuration use the original localStorage key. New installs and migrated settings default to automatic fit; prior manual values remain available. Countdown timer runtime is not persisted across reloads.
 
 ## Development
 
 ```sh
 npm install
-npm run dev
+npm run dev      # the app
+npm run convex   # in a second terminal, to work on convex/
 ```
 
 ## Validation

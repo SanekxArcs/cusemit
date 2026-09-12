@@ -797,6 +797,53 @@ select:focus-visible,
   line-height: 1.6;
   font-size: 12px;
 }
+/* ── Device sync ───────────────────────────────────────────────────────────── */
+.sync-code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 15px;
+  margin-bottom: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #ffffff06;
+}
+.sync-code .field-label {
+  display: block;
+  color: var(--muted-foreground);
+  margin-bottom: 5px;
+}
+.sync-code strong {
+  /* The code is read off one screen and typed into another, so it gets room
+     to breathe and digits that can't be mistaken for each other. */
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 21px;
+  letter-spacing: 0.16em;
+  color: var(--foreground);
+}
+.sync-entry {
+  display: flex;
+  gap: 8px;
+}
+.sync-entry .ui-input {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.sync-entry .ui-button {
+  flex-shrink: 0;
+}
+.sync-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.sync-error {
+  color: #f0a3a3;
+}
 @media (max-width: 600px) {
   .settings-rail {
     right: max(7px, env(safe-area-inset-right));
