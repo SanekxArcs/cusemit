@@ -1,5 +1,11 @@
 import { create } from 'zustand';
 import { toast } from 'sonner';
+import {
+  DEFAULT_BRIGHTNESS_POINTS,
+  sanitizeBrightnessPoints,
+  type BrightnessMode,
+  type BrightnessPoint,
+} from '@/lib/brightness';
 
 export type BackgroundMode = 'solid' | 'gradient' | 'image';
 export type ClockFormat = '24h' | '12h';
@@ -119,6 +125,17 @@ export interface ClockSettings {
   amoledSaverMode: 'drift' | 'mesh';
   amoledMeshType: 'pixel' | 'v-lines' | 'h-lines';
 
+  // Brightness (the app dims itself; browsers can't set screen brightness)
+  brightnessMode: BrightnessMode;
+  brightnessFixedLevel: number;
+  brightnessDayLevel: number;
+  brightnessNightLevel: number;
+  /** Minutes each change takes to fade in. */
+  brightnessTransition: number;
+  brightnessPoints: BrightnessPoint[];
+  brightnessLatitude: number | null;
+  brightnessLongitude: number | null;
+
   // Saved Fonts
   savedFonts: string[];
   hiddenCuratedFonts: string[];
@@ -186,6 +203,14 @@ export const DEFAULT_SETTINGS: ClockSettings = {
   enableAMOLEDSaver: false,
   amoledSaverMode: 'drift',
   amoledMeshType: 'pixel',
+  brightnessMode: 'off',
+  brightnessFixedLevel: 60,
+  brightnessDayLevel: 100,
+  brightnessNightLevel: 25,
+  brightnessTransition: 60,
+  brightnessPoints: DEFAULT_BRIGHTNESS_POINTS,
+  brightnessLatitude: null,
+  brightnessLongitude: null,
   topText: '',
   bottomText: '',
   topTextSize: 26,
@@ -222,6 +247,9 @@ const normalizeOrientation = (value: unknown): Orientation => {
       return 'default';
   }
 };
+
+const finiteOrNull = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) ? value : null;
 
 interface SettingsStore {
   settings: ClockSettings;
@@ -304,6 +332,11 @@ function loadInitialSettings(): ClockSettings {
           : [],
         timers: migratedTimers,
         orientation: normalizeOrientation(parsed.orientation),
+        brightnessPoints:
+          sanitizeBrightnessPoints(parsed.brightnessPoints) ??
+          DEFAULT_BRIGHTNESS_POINTS,
+        brightnessLatitude: finiteOrNull(parsed.brightnessLatitude),
+        brightnessLongitude: finiteOrNull(parsed.brightnessLongitude),
       };
     }
   } catch {

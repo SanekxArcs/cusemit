@@ -73,6 +73,7 @@ export function Range({
   max,
   step = 1,
   unit = '',
+  format,
   onChange,
 }: {
   label: string;
@@ -81,6 +82,8 @@ export function Range({
   max: number;
   step?: number;
   unit?: string;
+  /** Replaces the default number-and-unit readout. */
+  format?: (v: number) => string;
   onChange: (v: number) => void;
 }) {
   return (
@@ -88,8 +91,7 @@ export function Range({
       <div>
         <span>{label}</span>
         <output>
-          {Number(value.toFixed(2))}
-          {unit}
+          {format ? format(value) : `${Number(value.toFixed(2))}${unit}`}
         </output>
       </div>
       <Slider.Root

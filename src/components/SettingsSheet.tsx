@@ -10,6 +10,7 @@ import {
   RotateCcw,
   Upload,
   Expand,
+  SunMoon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSettingsStore, type ClockSettings } from '@/store/settings';
@@ -25,15 +26,27 @@ import {
 } from './ui/controls';
 import { FontBrowser } from './FontBrowser';
 import { ColorPicker as Color } from './ColorPicker';
+import { BrightnessSettings } from './BrightnessSettings';
 
 export type SettingsSection =
-  'amoled' | 'background' | 'clock' | 'display' | 'position';
+  | 'amoled'
+  | 'brightness'
+  | 'background'
+  | 'clock'
+  | 'display'
+  | 'position';
 const sections = [
   {
     id: 'amoled',
     title: 'AMOLED',
     icon: Moon,
     description: 'A quieter clock for your OLED screen.',
+  },
+  {
+    id: 'brightness',
+    title: 'Brightness',
+    icon: SunMoon,
+    description: 'Bright by day, gentle by night.',
   },
   {
     id: 'background',
@@ -121,7 +134,9 @@ export function SettingsSheet({
   } = useSettingsStore();
   const [resetting, setResetting] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
-  const current = sections.find((item) => item.id === section) ?? sections[2];
+  const current =
+    sections.find((item) => item.id === section) ??
+    sections.find((item) => item.id === 'clock')!;
   const number = (
     key: keyof ClockSettings,
     label: string,
@@ -317,6 +332,7 @@ export function SettingsSheet({
           )}
         </>
       )}
+      {section === 'brightness' && <BrightnessSettings />}
       {section === 'background' && (
         <>
           {s.enableAMOLEDSaver ? (

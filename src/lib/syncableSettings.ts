@@ -1,11 +1,13 @@
 import { DEFAULT_SETTINGS, type ClockSettings } from '@/store/settings';
+import { sanitizeBrightnessPoints } from '@/lib/brightness';
 
 /**
  * The settings that travel with a sync code.
  *
  * Deliberately excluded, because they describe *this* screen rather than your
  * taste: everything in Positioning (fit mode, scale, offsets, floating
- * placement), the uploaded background image and its framing, and timers.
+ * placement), the uploaded background image and its framing, timers, and
+ * the location used for sunrise and sunset.
  * A wall tablet and a phone share a look, not a layout.
  */
 export const SYNCABLE_KEYS = [
@@ -13,6 +15,14 @@ export const SYNCABLE_KEYS = [
   'enableAMOLEDSaver',
   'amoledSaverMode',
   'amoledMeshType',
+
+  // Brightness
+  'brightnessMode',
+  'brightnessFixedLevel',
+  'brightnessDayLevel',
+  'brightnessNightLevel',
+  'brightnessTransition',
+  'brightnessPoints',
 
   // Background
   'backgroundMode',
@@ -98,6 +108,11 @@ export function parseSyncable(payload: string): Partial<ClockSettings> {
   for (const key of SYNCABLE_KEYS) {
     if (!(key in source)) continue;
     const value = source[key];
+    if (key === 'brightnessPoints') {
+      const points = sanitizeBrightnessPoints(value);
+      if (points) result[key] = points;
+      continue;
+    }
     if (!isSameType(value, DEFAULT_SETTINGS[key])) continue;
     result[key] = value;
   }

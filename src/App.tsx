@@ -20,6 +20,7 @@ import { loadGoogleFont, CURATED_FONTS } from '@/lib/fonts';
 import { usePWA } from '@/hooks/usePWA';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { useDailyReload } from '@/hooks/useDailyReload';
+import { useBrightness } from '@/hooks/useBrightness';
 
 import { InfoDialog } from '@/components/InfoDialog';
 import { useTimerArray, formatMs } from '@/hooks/useTimerArray';
@@ -48,6 +49,7 @@ export function App() {
     null
   );
   const reducedMotion = prefersReducedMotion();
+  const brightness = useBrightness(settings);
   usePWA();
   useWakeLock();
 
@@ -491,6 +493,13 @@ export function App() {
           prefersReducedMotion={reducedMotion}
         />
       )}
+
+      {/* Above the clock, below the controls, so settings stay readable. */}
+      <div
+        className="brightness-dimmer"
+        aria-hidden="true"
+        style={{ opacity: 1 - brightness / 100 }}
+      />
 
       <SettingsSheet
         section={settingsSection}
