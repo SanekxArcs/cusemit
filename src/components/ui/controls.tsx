@@ -213,6 +213,11 @@ export function Panel({
           }}
           onInteractOutside={(event) => {
             const target = event.target as HTMLElement;
+            // Tapping away a timer alarm should not also close the panel.
+            if (target.closest('.timer-alarm')) {
+              event.preventDefault();
+              return;
+            }
             if (target.closest('.settings-rail')) {
               returnFocus.current = target.closest('button');
               event.preventDefault();

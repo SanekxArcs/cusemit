@@ -26,6 +26,11 @@ import { InfoDialog } from '@/components/InfoDialog';
 import { useTimerArray, formatMs } from '@/hooks/useTimerArray';
 import { FloatingTimerWidget } from '@/components/TimerWidget';
 import { FloatingClock } from '@/components/FloatingClock';
+import { TimerAlarm, type TimerAlert } from '@/components/TimerAlarm';
+import { loadCustomSound, primeAlarmAudio } from '@/lib/alarm';
+
+// Background tabs tick about once a minute; leave room for that.
+const ALARM_RECENT_MS = 2 * 60 * 1000;
 
 export function App() {
   const { settings, loadSettings, flushPersist, updateMultiple, updateTimer, removeTimer } =
@@ -54,13 +59,49 @@ export function App() {
   useWakeLock();
 
   // ── Timers ───────────────────────────────────────────────────────────────────
-  const timerControls = useTimerArray(settings.timers, (id) => {
+  const [alerts, setAlerts] = React.useState<TimerAlert[]>([]);
+  const dismissAlerts = React.useCallback(() => setAlerts([]), []);
+  const timerControls = useTimerArray(settings.timers, async (id) => {
     const cfg = settings.timers.find((t) => t.id === id);
-    if (cfg?.autoDelete) {
+    if (!cfg) return;
+    // A date target reports as expired again on every load (including the 4am
+    // reload), so only ring for one that passed just now, not hours ago.
+    const justFinished =
+      cfg.inputMode !== 'datetime' ||
+      Date.now() - new Date(cfg.targetDatetime).getTime() < ALARM_RECENT_MS;
+    if (justFinished && (cfg.alarmSound !== 'none' || cfg.flashOnExpire)) {
+      // Snapshot everything the alarm needs (including the custom sound, which
+      // removeTimer deletes) so it keeps going after an auto-delete.
+      const customBlob =
+        cfg.alarmSound === 'custom' ? await loadCustomSound(id) : null;
+      setAlerts((prev) => [
+        ...prev.filter((a) => a.id !== id),
+        {
+          id,
+          label: cfg.label,
+          sound: cfg.alarmSound,
+          customBlob,
+          flash: cfg.flashOnExpire,
+        },
+      ]);
+    }
+    if (cfg.autoDelete) {
       // Small delay so the "expired" state is visible for a moment before deletion
       setTimeout(() => removeTimer(id), 800);
     }
   });
+
+  // Audio may only start after a user gesture; unlock it on the first one so
+  // a timer that ends while nobody is touching the screen can still ring.
+  React.useEffect(() => {
+    const prime = () => primeAlarmAudio();
+    window.addEventListener('pointerdown', prime);
+    window.addEventListener('keydown', prime);
+    return () => {
+      window.removeEventListener('pointerdown', prime);
+      window.removeEventListener('keydown', prime);
+    };
+  }, []);
   // ─────────────────────────────────────────────────────────────────────────────
 
   const timerControlsRef = React.useRef(timerControls);
@@ -513,6 +554,8 @@ export function App() {
       />
 
       <InfoDialog isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
+
+      <TimerAlarm alerts={alerts} onDismiss={dismissAlerts} />
 
       <Toaster position="bottom-center" />
     </div>

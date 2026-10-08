@@ -1072,3 +1072,49 @@ select:focus-visible,
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+
+/* ── Timer alarm ─────────────────────────────────────────────────────────── */
+.timer-alarm {
+  position: fixed;
+  inset: 0;
+  /* Above the brightness dimmer, the rail and open panels. */
+  z-index: 80;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: max(24px, env(safe-area-inset-bottom)) 16px;
+  cursor: pointer;
+}
+.timer-alarm-flash {
+  align-items: center;
+  background: #000;
+}
+.timer-alarm-flash.lit {
+  background: #fff;
+}
+.timer-alarm-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 14px 22px;
+  border-radius: 16px;
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid #ffffff1f;
+  box-shadow: 0 12px 40px #0008;
+  text-align: center;
+}
+.timer-alarm-card strong {
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+.timer-alarm-card span {
+  color: #efaa91;
+  font-size: 13px;
+}
+.timer-alarm-card small {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}

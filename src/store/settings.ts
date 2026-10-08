@@ -6,6 +6,7 @@ import {
   type BrightnessMode,
   type BrightnessPoint,
 } from '@/lib/brightness';
+import { deleteCustomSound, type AlarmSound } from '@/lib/alarm';
 
 export type BackgroundMode = 'solid' | 'gradient' | 'image';
 export type ClockFormat = '24h' | '12h';
@@ -28,6 +29,12 @@ export interface TimerConfig {
   useClockFont: boolean;
   showSeconds: boolean;
   autoDelete: boolean;
+  /** Plays on a loop when time is up, until the screen is tapped. */
+  alarmSound: AlarmSound;
+  /** File name of the custom sound; the audio itself is in IndexedDB. */
+  customSoundName: string;
+  /** Flashes the whole screen when time is up, until it is tapped. */
+  flashOnExpire: boolean;
 }
 
 function makeTimerConfig(
@@ -48,6 +55,9 @@ function makeTimerConfig(
     useClockFont: false,
     showSeconds: true,
     autoDelete: false,
+    alarmSound: 'chime',
+    customSoundName: '',
+    flashOnExpire: false,
     ...partial,
   };
 }
@@ -435,6 +445,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     const newTimers = settings.timers.filter((t) => t.id !== id);
     set((state) => ({ settings: { ...state.settings, timers: newTimers } }));
     persistSettings(JSON.stringify({ ...get().settings, timers: newTimers }));
+    void deleteCustomSound(id);
   },
 
   updateTimer: (id, updates) => {

@@ -1,5 +1,23 @@
-import { Pause, Play, Plus, RotateCcw, Timer, Trash2 } from 'lucide-react';
-import { useSettingsStore } from '@/store/settings';
+import React from 'react';
+import {
+  Music,
+  Pause,
+  Play,
+  Plus,
+  RotateCcw,
+  Square,
+  Timer,
+  Trash2,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { useSettingsStore, type TimerConfig } from '@/store/settings';
+import {
+  ALARM_SOUND_OPTIONS,
+  MAX_CUSTOM_SOUND_BYTES,
+  loadCustomSound,
+  saveCustomSound,
+  startAlarm,
+} from '@/lib/alarm';
 import { formatMs, type TimerControls } from '@/hooks/useTimerArray';
 import { Button, Input, Panel, Section, Segments, Toggle } from './ui/controls';
 
@@ -186,9 +204,113 @@ export function TimerSheet({
               checked={timer.autoDelete ?? false}
               onChange={(v) => updateTimer(timer.id, { autoDelete: v })}
             />
+            <TimerAlarmSettings
+              timer={timer}
+              onChange={(updates) => updateTimer(timer.id, updates)}
+            />
           </Section>
         );
       })}
     </Panel>
+  );
+}
+
+const PREVIEW_MS = 4000;
+
+function TimerAlarmSettings({
+  timer,
+  onChange,
+}: {
+  timer: TimerConfig;
+  onChange: (updates: Partial<TimerConfig>) => void;
+}) {
+  const fileInput = React.useRef<HTMLInputElement>(null);
+  const stopPreview = React.useRef<(() => void) | null>(null);
+  const previewTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const [previewing, setPreviewing] = React.useState(false);
+
+  const endPreview = React.useCallback(() => {
+    stopPreview.current?.();
+    stopPreview.current = null;
+    if (previewTimeout.current) clearTimeout(previewTimeout.current);
+    setPreviewing(false);
+  }, []);
+  React.useEffect(() => endPreview, [endPreview]);
+  // A preview of the old choice should not keep playing after switching.
+  React.useEffect(endPreview, [timer.alarmSound, timer.customSoundName, endPreview]);
+
+  const preview = async () => {
+    if (previewing) return endPreview();
+    const blob =
+      timer.alarmSound === 'custom' ? await loadCustomSound(timer.id) : null;
+    stopPreview.current = startAlarm(timer.alarmSound, blob);
+    setPreviewing(true);
+    previewTimeout.current = setTimeout(endPreview, PREVIEW_MS);
+  };
+
+  const pickFile = async (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > MAX_CUSTOM_SOUND_BYTES) {
+      toast.error('That sound is too large. Pick a file under 5 MB.');
+      return;
+    }
+    try {
+      await saveCustomSound(timer.id, file);
+      onChange({ alarmSound: 'custom', customSoundName: file.name });
+    } catch {
+      toast.error('Could not save that sound on this device.');
+    }
+  };
+
+  const needsFile = timer.alarmSound === 'custom' && !timer.customSoundName;
+  return (
+    <>
+      <Segments
+        label="Sound when time is up"
+        value={timer.alarmSound}
+        options={ALARM_SOUND_OPTIONS}
+        columns={3}
+        onChange={(v) => onChange({ alarmSound: v })}
+      />
+      {timer.alarmSound === 'custom' && (
+        <div className="setting-field">
+          <input
+            ref={fileInput}
+            type="file"
+            accept="audio/*"
+            hidden
+            aria-label={'Custom sound file for ' + (timer.label || 'timer')}
+            onChange={(e) => {
+              void pickFile(e.target.files?.[0]);
+              e.target.value = '';
+            }}
+          />
+          <Button variant="outline" onClick={() => fileInput.current?.click()}>
+            <Music size={15} />{' '}
+            {timer.customSoundName ? 'Change sound' : 'Choose a sound file'}
+          </Button>
+          <span className="setting-note">
+            {timer.customSoundName ||
+              'No file yet. Until you pick one, Beep plays instead.'}
+          </span>
+        </div>
+      )}
+      {timer.alarmSound !== 'none' && !needsFile && (
+        <div className="font-actions">
+          <Button variant="outline" onClick={() => void preview()}>
+            {previewing ? <Square size={15} /> : <Play size={15} />}{' '}
+            {previewing ? 'Stop preview' : 'Preview sound'}
+          </Button>
+        </div>
+      )}
+      <Toggle
+        label="Flash the screen"
+        description="Flashes the whole screen until you tap it. Useful when the sound is off."
+        checked={timer.flashOnExpire}
+        onChange={(v) => onChange({ flashOnExpire: v })}
+      />
+    </>
   );
 }
