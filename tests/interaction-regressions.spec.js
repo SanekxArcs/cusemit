@@ -1,5 +1,15 @@
 import { test, expect } from '@playwright/test';
 
+test('toasts stay dark even when the device prefers a light theme', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await openClock(page);
+  await page.getByRole('button', { name: 'Display settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Reset all settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Reset settings', exact: true }).click();
+  await expect(page.locator('[data-sonner-toast]')).toContainText('Default settings restored');
+  await expect(page.locator('[data-sonner-toaster]')).toHaveAttribute('data-sonner-theme', 'dark');
+});
+
 async function openClock(page, settings = {}) {
   // Interaction regressions use the system fallback so they do not depend on
   // Google's availability. The font/offline tests cover real downloaded fonts.

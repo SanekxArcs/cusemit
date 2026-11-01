@@ -20,6 +20,7 @@ export interface TimerConfig {
   inputMode: 'duration' | 'datetime';
   hours: number;
   minutes: number;
+  seconds?: number;
   targetDatetime: string;
   displayPosition: 'top' | 'bottom' | 'floating';
   floatX: number;
@@ -46,6 +47,7 @@ function makeTimerConfig(
     inputMode: 'duration',
     hours: 0,
     minutes: 5,
+    seconds: 0,
     targetDatetime: '',
     displayPosition: 'bottom',
     floatX: 50,
@@ -276,7 +278,7 @@ interface SettingsStore {
   hideCuratedFont: (fontValue: string) => void;
   resetHiddenFonts: () => void;
   // Timer CRUD
-  addTimer: (partial?: Partial<Omit<TimerConfig, 'id'>>) => void;
+  addTimer: (partial?: Partial<Omit<TimerConfig, 'id'>>) => string;
   removeTimer: (id: string) => void;
   updateTimer: (id: string, updates: Partial<TimerConfig>) => void;
 }
@@ -438,6 +440,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     const newTimers = [...settings.timers, newTimer];
     set((state) => ({ settings: { ...state.settings, timers: newTimers } }));
     persistSettings(JSON.stringify({ ...get().settings, timers: newTimers }));
+    return newTimer.id;
   },
 
   removeTimer: (id) => {

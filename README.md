@@ -40,6 +40,18 @@ npm run dev      # the app
 npm run convex   # in a second terminal, to work on convex/
 ```
 
+## Voice timers
+
+Use the **Voice** microphone on the clock rail, or **Timers → Voice timer**. Paste your own Google AI Studio API key, tap **Record command**, speak, then tap **Stop & interpret**. Review the transcript, name and duration/target time before choosing **Create & start timer**. Nothing is created automatically.
+
+Examples: “Set a tea timer for 5 minutes”, “Set a timer for 30 seconds”, “Set a timer for 18:30”, “Постав таймер на 10 хвилин”, or “Ustaw minutnik na 5 minut”. The parser is instructed to understand Ukrainian, Polish and English. Clock-time requests use the device timezone and the next occurrence unless a date is explicitly given; ambiguous commands are rejected. Durations support seconds, pause and reset; target-date timers count down automatically through the existing alarm flow.
+
+The feature calls `gemini-3.5-flash-lite` directly from the browser using audio input and a structured JSON response. Google currently lists free-tier input/output for this model, subject to project quotas, model access and regional availability. A key attached to a billed project can incur charges; the app cannot enforce a free-only billing policy. See Google's [model documentation](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite), [pricing/data-use terms](https://ai.google.dev/gemini-api/docs/pricing) and [API key setup](https://aistudio.google.com/apikey).
+
+**Privacy:** the key lives only in React memory until reload, closing the tab, or **Forget key**. It is not placed in app settings, local/session storage, sync codes, a server environment variable, logs, or URLs. Each user supplies their own key; never ship a shared key in a frontend build. Restrict your key to the Gemini API and your site's HTTP referrers where supported. Audio is sent to Google only after recording is stopped (including the automatic 15-second limit); no audio/transcript is persisted locally. Google may use free-tier content to improve its products. The timer name and timer settings are saved normally.
+
+Requires internet, microphone permission, and a browser with MediaRecorder on HTTPS or localhost. Cancel, close, switching panels or hiding the tab stops the microphone and aborts in-flight interpretation; pending permissions and stale responses cannot create timers. Recordings are limited to 15 seconds / 8 MiB; requests time out after 30 seconds. Quota, key/access, connection and interpretation errors do not change existing timers. This is push-to-talk timer creation, not always-on listening or a safety-critical alarm service.
+
 ## Validation
 
 ```sh

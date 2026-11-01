@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Music,
+  Mic,
   Pause,
   Play,
   Plus,
@@ -25,10 +26,12 @@ export function TimerSheet({
   isOpen,
   onClose,
   timerControls,
+  onVoice,
 }: {
   isOpen: boolean;
   onClose: () => void;
   timerControls: Record<string, TimerControls>;
+  onVoice: () => void;
 }) {
   const { settings, addTimer, removeTimer, updateTimer } = useSettingsStore();
   return (
@@ -38,9 +41,14 @@ export function TimerSheet({
       title="Timers"
       description="A little structure for the time ahead."
       footer={
-        <Button variant="default" onClick={() => addTimer()}>
-          <Plus size={16} /> Add timer
-        </Button>
+        <div className="voice-timer-actions">
+          <Button variant="default" onClick={() => addTimer()}>
+            <Plus size={16} /> Add timer
+          </Button>
+          <Button variant="outline" onClick={onVoice}>
+            <Mic size={16} /> Voice timer
+          </Button>
+        </div>
       }
     >
       {!settings.timers.length && (
@@ -130,6 +138,23 @@ export function TimerSheet({
                       }
                     />
                   </label>
+                  <label>
+                    Seconds
+                    <Input
+                      type="number"
+                      min={0}
+                      max={59}
+                      value={timer.seconds ?? 0}
+                      onChange={(event) =>
+                        updateTimer(timer.id, {
+                          seconds: Math.max(
+                            0,
+                            Math.min(59, Number(event.target.value) || 0)
+                          ),
+                        })
+                      }
+                    />
+                  </label>
                 </div>
                 {control && (
                   <div className="font-actions">
@@ -137,7 +162,10 @@ export function TimerSheet({
                       variant="default"
                       onClick={running ? control.pause : control.play}
                       disabled={
-                        !running && timer.hours === 0 && timer.minutes === 0
+                        !running &&
+                        timer.hours === 0 &&
+                        timer.minutes === 0 &&
+                        !(timer.seconds ?? 0)
                       }
                     >
                       {running ? <Pause size={15} /> : <Play size={15} />}{' '}
@@ -154,7 +182,19 @@ export function TimerSheet({
                 <span className="field-label">Target date and time</span>
                 <Input
                   type="datetime-local"
-                  value={timer.targetDatetime}
+                  step={1}
+                  value={
+                    timer.targetDatetime &&
+                    Number.isFinite(Date.parse(timer.targetDatetime))
+                      ? new Date(
+                          new Date(timer.targetDatetime).getTime() -
+                            new Date(timer.targetDatetime).getTimezoneOffset() *
+                              60000
+                        )
+                          .toISOString()
+                          .slice(0, 19)
+                      : ''
+                  }
                   onChange={(e) =>
                     updateTimer(timer.id, { targetDatetime: e.target.value })
                   }

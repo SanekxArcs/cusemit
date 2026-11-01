@@ -14,7 +14,7 @@ export interface TimerControls extends TimerState {
 }
 
 function calcDurationMs(config: TimerConfig): number {
-  return (config.hours * 3600 + config.minutes * 60) * 1000
+  return (config.hours * 3600 + config.minutes * 60 + (config.seconds ?? 0)) * 1000
 }
 
 function calcDatetimeMs(config: TimerConfig): number {
@@ -71,7 +71,7 @@ export function useTimerArray(
 
   // Derived key that changes whenever config IDs or meaningful values change
   const configsKey = configs
-    .map((c) => `${c.id}:${c.inputMode}:${c.hours}:${c.minutes}:${c.targetDatetime}`)
+    .map((c) => `${c.id}:${c.inputMode}:${c.hours}:${c.minutes}:${c.seconds ?? 0}:${c.targetDatetime}`)
     .join('|')
   const previousConfigsRef = React.useRef(configs)
 
@@ -93,7 +93,7 @@ export function useTimerArray(
         const existing = prev[c.id]
         const previous = previousConfigs.get(c.id)
         const durationChanged = !previous || previous.inputMode !== c.inputMode ||
-          previous.hours !== c.hours || previous.minutes !== c.minutes
+          previous.hours !== c.hours || previous.minutes !== c.minutes || (previous.seconds ?? 0) !== (c.seconds ?? 0)
 
         if (c.inputMode === 'datetime') {
           endTimestampsRef.current[c.id] = null

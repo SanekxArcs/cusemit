@@ -6,6 +6,7 @@ import {
   Monitor,
   Scan,
   Timer,
+  Mic,
   Info,
   RotateCcw,
   Upload,
@@ -79,12 +80,14 @@ export function SettingsRail({
   onChange,
   visible,
   onTimer,
+  onVoice,
   onInfo,
 }: {
   section: SettingsSection | null;
   onChange: (s: SettingsSection | null) => void;
   visible: boolean;
   onTimer: () => void;
+  onVoice: () => void;
   onInfo: () => void;
 }) {
   return (
@@ -110,6 +113,10 @@ export function SettingsRail({
       <Button variant="ghost" aria-label="Timers" onClick={onTimer}>
         <Timer size={18} />
         <span>Timers</span>
+      </Button>
+      <Button variant="ghost" aria-label="Voice timer" onClick={onVoice}>
+        <Mic size={18} />
+        <span>Voice</span>
       </Button>
       <Button variant="ghost" aria-label="About Cusemit" onClick={onInfo}>
         <Info size={18} />

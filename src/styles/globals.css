@@ -1074,6 +1074,18 @@ select:focus-visible,
 }
 
 /* ── Timer alarm ─────────────────────────────────────────────────────────── */
+.voice-note {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.voice-note a { color: var(--foreground); text-decoration: underline; }
+.voice-transcript { margin: 0; overflow-wrap: anywhere; }
+.voice-error { color: var(--foreground); font-size: 13px; overflow-wrap: anywhere; }
+.voice-timer-actions { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+.voice-timer-actions > button { flex: 1; }
+
 .timer-alarm {
   position: fixed;
   inset: 0;

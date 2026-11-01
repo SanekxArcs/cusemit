@@ -8,6 +8,7 @@ import {
   type SettingsSection,
 } from '@/components/SettingsSheet';
 import { TimerSheet } from '@/components/TimerSheet';
+import { VoiceTimerPanel } from '@/components/VoiceTimerPanel';
 
 import { AmoledMesh } from '@/components/AmoledMesh';
 import { useSettingsStore } from '@/store/settings';
@@ -39,6 +40,15 @@ export function App() {
     React.useState<SettingsSection | null>(null);
   const isSettingsOpen = settingsSection !== null;
   const [isTimerOpen, setIsTimerOpen] = React.useState(false);
+  const [isVoiceOpen, setIsVoiceOpen] = React.useState(false);
+  const [voiceTimerToStart, setVoiceTimerToStart] =
+    React.useState<string | null>(null);
+  const openVoice = () => {
+    setSettingsSection(null);
+    setIsTimerOpen(false);
+    setIsInfoOpen(false);
+    setIsVoiceOpen(true);
+  };
   const [time, setTime] = React.useState({ main: '', ampm: '' });
   const [showControls, setShowControls] = React.useState(true);
   const [isInfoOpen, setIsInfoOpen] = React.useState(false);
@@ -90,6 +100,14 @@ export function App() {
       setTimeout(() => removeTimer(id), 800);
     }
   });
+
+  React.useEffect(() => {
+    if (!voiceTimerToStart) return;
+    const control = timerControls[voiceTimerToStart];
+    if (!control || control.remainingMs <= 0) return;
+    control.play();
+    setVoiceTimerToStart(null);
+  }, [voiceTimerToStart, timerControls]);
 
   // Audio may only start after a user gesture; unlock it on the first one so
   // a timer that ends while nobody is touching the screen can still ring.
@@ -257,7 +275,7 @@ export function App() {
       setShowControls(true);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       hideTimerRef.current = setTimeout(() => {
-        if (!isSettingsOpen && !isInfoOpen && !isTimerOpen)
+        if (!isSettingsOpen && !isInfoOpen && !isTimerOpen && !isVoiceOpen)
           setShowControls(false);
       }, 10000);
     };
@@ -273,7 +291,13 @@ export function App() {
       window.removeEventListener('keydown', resetTimer);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
-  }, [settings.autoHideControls, isSettingsOpen, isInfoOpen, isTimerOpen]);
+  }, [
+    settings.autoHideControls,
+    isSettingsOpen,
+    isInfoOpen,
+    isTimerOpen,
+    isVoiceOpen,
+  ]);
 
   const bgStyle: React.CSSProperties = React.useMemo(() => {
     if (settings.enableAMOLEDSaver) return { backgroundColor: '#000000' };
@@ -513,19 +537,23 @@ export function App() {
       <SettingsRail
         section={settingsSection}
         onChange={(section) => {
+          setIsVoiceOpen(false);
           setIsTimerOpen(false);
           setIsInfoOpen(false);
           setSettingsSection(section);
         }}
         visible={showControls}
         onTimer={() => {
+          setIsVoiceOpen(false);
           setSettingsSection(null);
           setIsTimerOpen(true);
         }}
         onInfo={() => {
+          setIsVoiceOpen(false);
           setSettingsSection(null);
           setIsInfoOpen(true);
         }}
+        onVoice={openVoice}
       />
       {settings.enableAMOLEDSaver && settings.amoledSaverMode === 'mesh' && (
         <AmoledMesh
@@ -551,13 +579,26 @@ export function App() {
         isOpen={isTimerOpen}
         onClose={() => setIsTimerOpen(false)}
         timerControls={timerControls}
+        onVoice={openVoice}
+      />
+
+      <VoiceTimerPanel
+        open={isVoiceOpen}
+        onClose={() => setIsVoiceOpen(false)}
+        onCreate={(config) => {
+          primeAlarmAudio();
+          const id = useSettingsStore.getState().addTimer(config);
+          if (config.inputMode === 'duration') setVoiceTimerToStart(id);
+          setIsVoiceOpen(false);
+          setIsTimerOpen(true);
+        }}
       />
 
       <InfoDialog isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
 
       <TimerAlarm alerts={alerts} onDismiss={dismissAlerts} />
 
-      <Toaster position="bottom-center" />
+      <Toaster theme="dark" position="bottom-center" />
     </div>
   );
 }
