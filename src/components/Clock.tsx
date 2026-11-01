@@ -377,6 +377,7 @@ export function Clock(p: ClockProps) {
         <g
           transform={`translate(${x} ${y}) scale(${scale})`}
           data-clock-ink={JSON.stringify(layout.bounds)}
+          key={p.refreshKey}
           data-fit-scale={scale}
         >
           {layout.lines.map((line, row) => (

@@ -194,6 +194,119 @@ select:focus-visible,
 .ui-input option {
   background: var(--background);
 }
+.voice-dock {
+  position: fixed;
+  z-index: 60;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  left: max(20px, env(safe-area-inset-left));
+  color: #f4f4f5;
+  transition:
+    opacity 0.6s,
+    translate 0.3s;
+}
+.voice-dock-hidden {
+  opacity: 0;
+  pointer-events: none;
+  translate: 0 8px;
+}
+.voice-dock-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.voice-mic.ui-button {
+  width: 58px;
+  height: 58px;
+  padding: 0;
+  border: 1px solid #ffffff26;
+  border-radius: 50%;
+  background: #17191c;
+  color: #f4f4f5;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition:
+    transform 0.18s,
+    background 0.18s;
+}
+.voice-mic.ui-button:hover {
+  background: #292b2e;
+}
+.voice-mic.ui-button:active {
+  transform: scale(0.93);
+}
+.voice-mic.ui-button[aria-pressed='true'] {
+  background: #f4f4f5;
+  color: #17191c;
+}
+.voice-cancel.ui-button {
+  background: #17191c;
+  color: #f4f4f5;
+  border-radius: 50%;
+}
+.voice-feedback {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 14px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 174px;
+  padding: 14px 12px;
+  background: #17191c;
+  border: 1px solid #ffffff20;
+  border-radius: 16px;
+  font-size: 12px;
+}
+.voice-waves {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 34px;
+}
+.voice-waves i {
+  display: block;
+  width: 4px;
+  height: 32px;
+  border-radius: 3px;
+  background: currentColor;
+  transform: scaleY(0.25);
+  animation: voice-wave 0.8s var(--wave-delay) ease-in-out infinite alternate;
+}
+.voice-waves[data-reactive='true'] i {
+  animation: none;
+  transition: transform 65ms linear;
+}
+.voice-spinner {
+  animation: voice-spin 0.9s linear infinite;
+}
+@keyframes voice-wave {
+  to {
+    transform: scaleY(0.85);
+  }
+}
+@keyframes voice-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-dock,
+  .voice-mic.ui-button {
+    transition: none;
+  }
+  .voice-waves i,
+  .voice-spinner {
+    animation: none;
+  }
+  .voice-waves i {
+    transform: scaleY(0.5);
+  }
+}
+
 .settings-rail {
   position: fixed;
   z-index: 60;

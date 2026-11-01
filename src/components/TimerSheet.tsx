@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Music,
-  Mic,
   Pause,
   Play,
   Plus,
@@ -26,12 +25,10 @@ export function TimerSheet({
   isOpen,
   onClose,
   timerControls,
-  onVoice,
 }: {
   isOpen: boolean;
   onClose: () => void;
   timerControls: Record<string, TimerControls>;
-  onVoice: () => void;
 }) {
   const { settings, addTimer, removeTimer, updateTimer } = useSettingsStore();
   return (
@@ -44,9 +41,6 @@ export function TimerSheet({
         <div className="voice-timer-actions">
           <Button variant="default" onClick={() => addTimer()}>
             <Plus size={16} /> Add timer
-          </Button>
-          <Button variant="outline" onClick={onVoice}>
-            <Mic size={16} /> Voice timer
           </Button>
         </div>
       }

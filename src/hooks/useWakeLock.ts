@@ -1,49 +1,91 @@
-import React from 'react'
+import React from 'react';
 
-/**
- * Keeps the screen awake (no dimming/lock) while the app is open and visible.
- * The Wake Lock API auto-releases when the tab is hidden, so we re-acquire it
- * whenever the page becomes visible again.
- */
-export function useWakeLock(enabled: boolean = true): void {
-  const lockRef = React.useRef<WakeLockSentinel | null>(null)
+const RELEASE_RETRY_MS = 1000;
+const DENIED_RETRY_MS = 30000;
 
+export function useWakeLock(enabled = true): void {
   React.useEffect(() => {
-    if (!enabled || !('wakeLock' in navigator)) return
+    if (!enabled || !('wakeLock' in navigator)) return;
+    let disposed = false;
+    let suspended = false;
+    let pending = false;
+    let lock: WakeLockSentinel | null = null;
+    let retry: ReturnType<typeof setTimeout> | null = null;
 
-    let cancelled = false
-
-    const acquire = async () => {
-      if (document.visibilityState !== 'visible') return
+    const clearRetry = () => {
+      if (retry !== null) clearTimeout(retry);
+      retry = null;
+    };
+    const schedule = (delay: number) => {
+      if (disposed || suspended || document.hidden || retry !== null) return;
+      retry = setTimeout(() => {
+        retry = null;
+        void acquire();
+      }, delay);
+    };
+    const onRelease = () => {
+      lock = null;
+      schedule(RELEASE_RETRY_MS);
+    };
+    const release = () => {
+      const current = lock;
+      lock = null;
+      current?.removeEventListener('release', onRelease);
+      current?.release().catch(() => {});
+    };
+    async function acquire() {
+      if (disposed || suspended || pending || lock || document.hidden) return;
+      clearRetry();
+      pending = true;
       try {
-        const lock = await navigator.wakeLock.request('screen')
-        if (cancelled) {
-          lock.release().catch(() => {})
-          return
+        const acquired = await navigator.wakeLock.request('screen');
+        if (disposed || suspended || document.hidden) {
+          acquired.release().catch(() => {});
+          return;
         }
-        lockRef.current = lock
-        lock.addEventListener('release', () => {
-          if (lockRef.current === lock) lockRef.current = null
-        })
+        if (acquired.released) {
+          schedule(RELEASE_RETRY_MS);
+          return;
+        }
+        lock = acquired;
+        acquired.addEventListener('release', onRelease, { once: true });
       } catch {
-        // Wake lock request denied (e.g. low battery) — ignore, no fallback needed
+        schedule(DENIED_RETRY_MS);
+      } finally {
+        pending = false;
       }
     }
+    const onSuspend = () => {
+      suspended = true;
+      clearRetry();
+      release();
+    };
+    const onResume = () => {
+      suspended = false;
+      void acquire();
+    };
+    const onVisibility = () => {
+      if (document.hidden) onSuspend();
+      else onResume();
+    };
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && !lockRef.current) {
-        acquire()
-      }
-    }
-
-    acquire()
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
+    void acquire();
+    document.addEventListener('visibilitychange', onVisibility);
+    document.addEventListener('freeze', onSuspend);
+    document.addEventListener('resume', onResume);
+    window.addEventListener('pagehide', onSuspend);
+    window.addEventListener('pageshow', onResume);
+    window.addEventListener('focus', onResume);
     return () => {
-      cancelled = true
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      lockRef.current?.release().catch(() => {})
-      lockRef.current = null
-    }
-  }, [enabled])
+      disposed = true;
+      clearRetry();
+      release();
+      document.removeEventListener('visibilitychange', onVisibility);
+      document.removeEventListener('freeze', onSuspend);
+      document.removeEventListener('resume', onResume);
+      window.removeEventListener('pagehide', onSuspend);
+      window.removeEventListener('pageshow', onResume);
+      window.removeEventListener('focus', onResume);
+    };
+  }, [enabled]);
 }

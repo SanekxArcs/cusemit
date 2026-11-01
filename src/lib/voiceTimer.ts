@@ -1,5 +1,7 @@
 import type { TimerConfig } from '@/store/settings';
 
+export class VoiceKeyError extends Error {}
+
 export const VOICE_MODEL = 'gemini-3.5-flash-lite';
 export const MAX_DURATION_SECONDS = 99 * 3600 + 59 * 60 + 59;
 
@@ -186,11 +188,11 @@ export async function interpretVoiceTimer(
         'Gemini quota reached. Wait and try again, or check your free-tier quota in Google AI Studio.'
       );
     if ([400, 401, 403].includes(response.status))
-      throw new Error(
+      throw new VoiceKeyError(
         'Gemini rejected the request. Check your API key, its restrictions, and model access in Google AI Studio.'
       );
     if (response.status === 404)
-      throw new Error(
+      throw new VoiceKeyError(
         'Gemini 3.5 Flash-Lite is not available for this API key. Check model access in Google AI Studio.'
       );
     throw new Error('Gemini is unavailable right now. Please try again later.');

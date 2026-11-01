@@ -1,30 +1,38 @@
 import React from 'react';
-import { Mic, Square, X } from 'lucide-react';
-import { formatMs } from '@/hooks/useTimerArray';
+import { LoaderCircle, Mic, Square, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { useVoiceStore } from '@/store/voice';
+import { primeAlarmAudio } from '@/lib/alarm';
 import {
   interpretVoiceTimer,
-  VOICE_MODEL,
+  VoiceKeyError,
   voiceTimerConfig,
-  type VoiceTimerCommand,
 } from '@/lib/voiceTimer';
 import type { TimerConfig } from '@/store/settings';
-import { Button, Input, Panel, Section } from './ui/controls';
+import { Button } from './ui/controls';
 
-export function VoiceTimerPanel({
-  open,
-  onClose,
+export function VoiceTimerButton({
+  visible,
+  enabled,
+  reducedMotion,
+  onBusyChange,
   onCreate,
 }: {
-  open: boolean;
-  onClose: () => void;
+  visible: boolean;
+  enabled: boolean;
+  reducedMotion: boolean;
+  onBusyChange: (busy: boolean) => void;
   onCreate: (config: Partial<Omit<TimerConfig, 'id'>>) => void;
 }) {
-  const [apiKey, setApiKey] = React.useState('');
+  const { apiKey, verified, holdToTalk } = useVoiceStore();
+  const [online, setOnline] = React.useState(navigator.onLine);
+  const bars = React.useRef<HTMLDivElement | null>(null);
+  const stopWaves = React.useRef<(() => void) | null>(null);
+  const createRef = React.useRef(onCreate);
+  createRef.current = onCreate;
   const [phase, setPhase] = React.useState<
     'idle' | 'permission' | 'recording' | 'processing'
   >('idle');
-  const [command, setCommand] = React.useState<VoiceTimerCommand | null>(null);
-  const [error, setError] = React.useState('');
   const recorder = React.useRef<MediaRecorder | null>(null);
   const stream = React.useRef<MediaStream | null>(null);
   const request = React.useRef<AbortController | null>(null);
@@ -38,6 +46,8 @@ export function VoiceTimerPanel({
   const releaseMicrophone = React.useCallback(() => {
     if (limit.current) clearTimeout(limit.current);
     limit.current = null;
+    stopWaves.current?.();
+    stopWaves.current = null;
     stream.current?.getTracks().forEach((track) => track.stop());
     stream.current = null;
   }, []);
@@ -55,31 +65,98 @@ export function VoiceTimerPanel({
     releaseMicrophone();
     busy.current = false;
     setPhase('idle');
-    setCommand(null);
-    setError('');
   }, [releaseMicrophone]);
 
   React.useEffect(() => {
-    if (!open) cancel();
+    const updateOnline = () => setOnline(navigator.onLine);
+    window.addEventListener('online', updateOnline);
+    window.addEventListener('offline', updateOnline);
+    return () => {
+      window.removeEventListener('online', updateOnline);
+      window.removeEventListener('offline', updateOnline);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!enabled || !online || !verified) cancel();
     return cancel;
-  }, [open, cancel]);
+  }, [enabled, online, verified, apiKey, holdToTalk, cancel]);
+
+  React.useEffect(() => {
+    onBusyChange(phase !== 'idle');
+  }, [phase, onBusyChange]);
 
   React.useEffect(() => {
     const onHidden = () => {
       if (document.hidden) cancel();
     };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') cancel();
+    };
     document.addEventListener('visibilitychange', onHidden);
-    return () => document.removeEventListener('visibilitychange', onHidden);
+    window.addEventListener('pagehide', cancel);
+    window.addEventListener('blur', cancel);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('visibilitychange', onHidden);
+      window.removeEventListener('pagehide', cancel);
+      window.removeEventListener('blur', cancel);
+      window.removeEventListener('keydown', onKey);
+    };
   }, [cancel]);
 
+  function animateWaves(input: MediaStream) {
+    if (reducedMotion) return;
+    let context: AudioContext | null = null;
+    try {
+      context = new AudioContext();
+      const source = context.createMediaStreamSource(input);
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      const samples = new Uint8Array(analyser.frequencyBinCount);
+      let frame = 0;
+      let previous = 0;
+      const paint = (time: number) => {
+        if (time - previous > 65) {
+          analyser.getByteFrequencyData(samples);
+          if (bars.current) bars.current.dataset.reactive = 'true';
+          bars.current
+            ?.querySelectorAll<HTMLElement>('i')
+            .forEach((bar, index) => {
+              const level = samples[index * 5 + 2] / 255;
+              bar.style.transform = 'scaleY(' + (0.15 + level * 0.85) + ')';
+            });
+          previous = time;
+        }
+        frame = requestAnimationFrame(paint);
+      };
+      frame = requestAnimationFrame(paint);
+      stopWaves.current = () => {
+        cancelAnimationFrame(frame);
+        source.disconnect();
+        analyser.disconnect();
+        void context?.close().catch(() => {});
+      };
+      void context.resume().catch(() => {});
+    } catch {
+      void context?.close().catch(() => {});
+    }
+  }
+
+  function stopRecording() {
+    if (recorder.current?.state === 'recording') recorder.current.stop();
+    else if (busy.current) cancel();
+  }
+
   async function startRecording() {
-    if (busy.current || !supported || !apiKey.trim()) return;
+    if (busy.current || !supported || !verified || !online || !enabled) return;
     busy.current = true;
     const token = ++generation.current;
-    setCommand(null);
-    setError('');
+
     setPhase('permission');
     try {
+      primeAlarmAudio();
       const input = await navigator.mediaDevices.getUserMedia({ audio: true });
       if (generation.current !== token) {
         input.getTracks().forEach((track) => track.stop());
@@ -110,7 +187,7 @@ export function VoiceTimerPanel({
       };
       recording.onerror = () => {
         cancel();
-        setError(
+        toast.error(
           'Recording failed. Please check your microphone and try again.'
         );
       };
@@ -128,16 +205,20 @@ export function VoiceTimerPanel({
             apiKey,
             controller.signal
           );
-          if (generation.current === token) setCommand(result);
-        } catch (failure) {
           if (generation.current === token)
-            setError(
+            createRef.current(voiceTimerConfig(result));
+        } catch (failure) {
+          if (generation.current === token) {
+            if (failure instanceof VoiceKeyError)
+              useVoiceStore.getState().setKey(apiKey);
+            toast.error(
               controller.signal.aborted
                 ? 'Gemini took too long. Please try again.'
                 : failure instanceof Error
                   ? failure.message
                   : 'Could not interpret the recording.'
             );
+          }
         } finally {
           clearTimeout(timeout);
           if (generation.current === token) {
@@ -148,6 +229,7 @@ export function VoiceTimerPanel({
         }
       };
       recording.start(1000);
+      animateWaves(input);
       setPhase('recording');
       limit.current = setTimeout(() => {
         if (recording.state !== 'inactive') recording.stop();
@@ -157,7 +239,7 @@ export function VoiceTimerPanel({
       releaseMicrophone();
       busy.current = false;
       setPhase('idle');
-      setError(
+      toast.error(
         failure instanceof DOMException && failure.name === 'NotAllowedError'
           ? 'Microphone permission was denied. Allow microphone access in your browser and try again.'
           : failure instanceof Error
@@ -167,156 +249,114 @@ export function VoiceTimerPanel({
     }
   }
 
+  if (!verified || !online || !enabled || !supported) return null;
+  const active = phase !== 'idle';
+  const recording = phase === 'recording';
+  const working = phase === 'permission' || phase === 'processing';
+  const label = recording
+    ? 'Stop & interpret'
+    : phase === 'permission'
+      ? 'Cancel microphone request'
+      : phase === 'processing'
+        ? 'Interpreting timer'
+        : holdToTalk
+          ? 'Hold to talk'
+          : 'Record command';
+
   return (
-    <Panel
-      open={open}
-      onClose={onClose}
-      title="Voice timer"
-      description="Say the time. Check it. Make it yours."
-      footer={
-        command && (
-          <div className="voice-timer-actions">
-            <Button
-              variant="default"
-              onClick={() => {
-                try {
-                  onCreate(voiceTimerConfig(command));
-                  setCommand(null);
-                } catch (failure) {
-                  setError(
-                    failure instanceof Error
-                      ? failure.message
-                      : 'Invalid timer.'
-                  );
-                }
-              }}
-            >
-              Create &amp; start timer
-            </Button>
-            <Button variant="outline" onClick={() => setCommand(null)}>
-              Discard
-            </Button>
-          </div>
-        )
+    <div
+      className={
+        'voice-dock' + (!visible && !active ? ' voice-dock-hidden' : '')
       }
+      inert={!visible && !active}
+      data-phase={phase}
     >
-      <Section title="Connect Gemini">
-        <label className="setting-field">
-          <span className="field-label">Gemini API key</span>
-          <Input
-            type="password"
-            autoComplete="off"
-            spellCheck={false}
-            value={apiKey}
-            placeholder="Paste your own API key"
-            disabled={phase !== 'idle'}
-            onChange={(event) => {
-              setApiKey(event.target.value);
-              setCommand(null);
-              setError('');
-            }}
-          />
-        </label>
-        <p className="voice-note">
-          {VOICE_MODEL}. Key kept only in this tab’s memory; never saved or
-          synced.{' '}
-          <a
-            href="https://aistudio.google.com/apikey"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Get an API key
-          </a>
-          .
-        </p>
-        {apiKey && (
+      {active && (
+        <div className="voice-feedback" role="status" aria-live="polite">
+          {recording && (
+            <div className="voice-waves" ref={bars} aria-hidden="true">
+              {Array.from({ length: 13 }, (_, index) => (
+                <i
+                  key={index}
+                  style={
+                    {
+                      '--wave-delay': index * -0.08 + 's',
+                    } as React.CSSProperties
+                  }
+                />
+              ))}
+            </div>
+          )}
+          <span>
+            {recording
+              ? 'Listening…'
+              : phase === 'permission'
+                ? 'Allow microphone…'
+                : 'Setting your timer…'}
+          </span>
+        </div>
+      )}
+      <div className="voice-dock-actions">
+        <Button
+          className="voice-mic"
+          aria-label={label}
+          title={label}
+          aria-pressed={recording}
+          aria-busy={working}
+          disabled={phase === 'processing'}
+          onPointerDown={(event) => {
+            if (!holdToTalk || event.button !== 0 || working) return;
+            event.preventDefault();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            void startRecording();
+          }}
+          onPointerUp={(event) => {
+            if (!holdToTalk) return;
+            event.preventDefault();
+            stopRecording();
+          }}
+          onPointerCancel={() => {
+            if (holdToTalk) cancel();
+          }}
+          onKeyDown={(event) => {
+            if (holdToTalk && [' ', 'Enter'].includes(event.key)) {
+              event.preventDefault();
+              if (!event.repeat) void startRecording();
+            }
+          }}
+          onKeyUp={(event) => {
+            if (holdToTalk && [' ', 'Enter'].includes(event.key)) {
+              event.preventDefault();
+              stopRecording();
+            }
+          }}
+          onClick={() => {
+            if (holdToTalk) return;
+            if (phase === 'recording' || phase === 'permission')
+              stopRecording();
+            else void startRecording();
+          }}
+        >
+          {working ? (
+            <LoaderCircle size={23} className="voice-spinner" />
+          ) : recording ? (
+            <Square size={21} fill="currentColor" />
+          ) : (
+            <Mic size={24} />
+          )}
+        </Button>
+        {active && (
           <Button
-            size="small"
+            className="voice-cancel"
+            size="icon"
             variant="ghost"
-            disabled={phase !== 'idle'}
-            onClick={() => {
-              setApiKey('');
-              cancel();
-            }}
+            aria-label="Cancel voice timer"
+            onClick={cancel}
           >
-            Forget key
+            <X size={17} />
           </Button>
         )}
-      </Section>
-      <Section title="Speak a timer">
-        <p className="voice-note">
-          “5 minutes for tea” or “At 18:30”. Speak English, Ukrainian or Polish.
-          Times use this device’s timezone.
-        </p>
-        <p className="voice-note">
-          Up to 15 seconds of audio goes to Google when stopped, including the
-          automatic limit. Free-tier quotas apply; Google may use free-tier
-          audio to improve its products.
-        </p>
-        {!supported && (
-          <p role="alert">
-            Voice recording needs a supported browser on HTTPS or localhost.
-          </p>
-        )}
-        <div className="voice-timer-actions">
-          {phase === 'recording' ? (
-            <Button
-              variant="default"
-              onClick={() => {
-                if (recorder.current?.state === 'recording')
-                  recorder.current.stop();
-              }}
-            >
-              <Square size={16} /> Stop &amp; interpret
-            </Button>
-          ) : (
-            <Button
-              variant="default"
-              disabled={!supported || !apiKey.trim() || phase !== 'idle'}
-              onClick={startRecording}
-            >
-              <Mic size={16} /> Record command
-            </Button>
-          )}
-          {phase !== 'idle' && (
-            <Button variant="outline" onClick={cancel}>
-              <X size={16} /> Cancel
-            </Button>
-          )}
-        </div>
-        <p className="voice-note" role="status">
-          {phase === 'recording'
-            ? 'Listening… tap Stop & interpret when you finish.'
-            : phase === 'permission'
-              ? 'Waiting for microphone permission…'
-              : phase === 'processing'
-                ? 'Interpreting with Gemini…'
-                : 'Nothing is created until you confirm.'}
-        </p>
-        {error && (
-          <p role="alert" className="voice-error">
-            {error}
-          </p>
-        )}
-      </Section>
-      {command && (
-        <Section title="Check your timer">
-          <blockquote className="voice-transcript">
-            {command.transcript}
-          </blockquote>
-          <div className="timer-readout">
-            {command.mode === 'duration'
-              ? formatMs(command.durationSeconds * 1000)
-              : new Date(command.targetDatetime).toLocaleString()}
-            <small>
-              {command.label} ·{' '}
-              {command.mode === 'duration'
-                ? 'Starts when you confirm'
-                : Intl.DateTimeFormat().resolvedOptions().timeZone}
-            </small>
-          </div>
-        </Section>
-      )}
-    </Panel>
+      </div>
+    </div>
   );
 }

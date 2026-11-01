@@ -1,5 +1,5 @@
 import React from 'react';
-import { Toaster } from 'sonner';
+import { toast, Toaster } from 'sonner';
 import { Clock } from '@/components/Clock';
 
 import {
@@ -8,7 +8,7 @@ import {
   type SettingsSection,
 } from '@/components/SettingsSheet';
 import { TimerSheet } from '@/components/TimerSheet';
-import { VoiceTimerPanel } from '@/components/VoiceTimerPanel';
+import { VoiceTimerButton } from '@/components/VoiceTimerPanel';
 
 import { AmoledMesh } from '@/components/AmoledMesh';
 import { useSettingsStore } from '@/store/settings';
@@ -21,6 +21,7 @@ import { loadGoogleFont, CURATED_FONTS } from '@/lib/fonts';
 import { usePWA } from '@/hooks/usePWA';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { useDailyReload } from '@/hooks/useDailyReload';
+import { useClockTime } from '@/hooks/useClockTime';
 import { useBrightness } from '@/hooks/useBrightness';
 
 import { InfoDialog } from '@/components/InfoDialog';
@@ -40,16 +41,11 @@ export function App() {
     React.useState<SettingsSection | null>(null);
   const isSettingsOpen = settingsSection !== null;
   const [isTimerOpen, setIsTimerOpen] = React.useState(false);
-  const [isVoiceOpen, setIsVoiceOpen] = React.useState(false);
+  const [voiceBusy, setVoiceBusy] = React.useState(false);
   const [voiceTimerToStart, setVoiceTimerToStart] =
     React.useState<string | null>(null);
-  const openVoice = () => {
-    setSettingsSection(null);
-    setIsTimerOpen(false);
-    setIsInfoOpen(false);
-    setIsVoiceOpen(true);
-  };
-  const [time, setTime] = React.useState({ main: '', ampm: '' });
+
+  const time = useClockTime(settings.clockFormat, settings.showSeconds);
   const [showControls, setShowControls] = React.useState(true);
   const [isInfoOpen, setIsInfoOpen] = React.useState(false);
   const hideTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -57,12 +53,6 @@ export function App() {
     x: 0,
     y: 0,
   });
-  const driftIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(
-    null
-  );
-  const timeIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(
-    null
-  );
   const reducedMotion = prefersReducedMotion();
   const brightness = useBrightness(settings);
   usePWA();
@@ -146,38 +136,6 @@ export function App() {
     };
   }, [flushPersist]);
 
-  const formatTime = React.useCallback(() => {
-    const now = new Date();
-    let hours = now.getHours();
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const seconds = now.getSeconds().toString().padStart(2, '0');
-
-    if (settings.clockFormat === '12h') {
-      const isPM = hours >= 12;
-      hours = hours % 12 || 12;
-      const hoursStr = hours.toString().padStart(2, '0');
-      const base = `${hoursStr}:${minutes}`;
-      const main = settings.showSeconds ? `${base}:${seconds}` : base;
-      return { main, ampm: isPM ? 'PM' : 'AM' };
-    } else {
-      const hoursStr = hours.toString().padStart(2, '0');
-      const base = `${hoursStr}:${minutes}`;
-      const main = settings.showSeconds ? `${base}:${seconds}` : base;
-      return { main, ampm: '' };
-    }
-  }, [settings.clockFormat, settings.showSeconds]);
-
-  React.useEffect(() => {
-    setTime(formatTime());
-    const interval = setInterval(() => {
-      setTime(formatTime());
-    }, 500);
-    timeIntervalRef.current = interval;
-    return () => {
-      if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
-    };
-  }, [formatTime]);
-
   React.useEffect(() => {
     const fontFamily = settings.customFontFamily || settings.fontFamily;
     const curated = CURATED_FONTS.find((f) => f.value === fontFamily);
@@ -210,59 +168,36 @@ export function App() {
   };
 
   React.useEffect(() => {
-    if (!settings.enableAMOLEDSaver || reducedMotion || isSettingsOpen) {
-      if (driftIntervalRef.current) clearInterval(driftIntervalRef.current);
-      return;
-    }
-    const driftInterval = setInterval(() => {
-      setDriftOffset(generateRandomDrift());
-    }, 60000);
-    driftIntervalRef.current = driftInterval;
-    return () => {
-      if (driftIntervalRef.current) clearInterval(driftIntervalRef.current);
+    if (!settings.enableAMOLEDSaver || reducedMotion || isSettingsOpen) return;
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const stop = () => {
+      if (interval !== null) clearInterval(interval);
+      interval = null;
     };
-  }, [settings.enableAMOLEDSaver, reducedMotion, isSettingsOpen]);
-
-  React.useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        if (driftIntervalRef.current) {
-          clearInterval(driftIntervalRef.current);
-          driftIntervalRef.current = null;
-        }
-        if (timeIntervalRef.current) {
-          clearInterval(timeIntervalRef.current);
-          timeIntervalRef.current = null;
-        }
-      } else {
-        setTime(formatTime());
-        if (!timeIntervalRef.current) {
-          timeIntervalRef.current = setInterval(() => {
-            setTime(formatTime());
-          }, 500);
-        }
-        if (
-          settings.enableAMOLEDSaver &&
-          !reducedMotion &&
-          !driftIntervalRef.current &&
-          !isSettingsOpen
-        ) {
-          driftIntervalRef.current = setInterval(() => {
-            setDriftOffset(generateRandomDrift());
-          }, 60000);
-        }
+    const start = () => {
+      stop();
+      if (!document.hidden) {
+        interval = setInterval(
+          () => setDriftOffset(generateRandomDrift()),
+          60000
+        );
       }
     };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () =>
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [
-    settings.enableAMOLEDSaver,
-    reducedMotion,
-    isSettingsOpen,
-    isInfoOpen,
-    formatTime,
-  ]);
+    start();
+    document.addEventListener('visibilitychange', start);
+    document.addEventListener('freeze', stop);
+    document.addEventListener('resume', start);
+    window.addEventListener('pagehide', stop);
+    window.addEventListener('pageshow', start);
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', start);
+      document.removeEventListener('freeze', stop);
+      document.removeEventListener('resume', start);
+      window.removeEventListener('pagehide', stop);
+      window.removeEventListener('pageshow', start);
+    };
+  }, [settings.enableAMOLEDSaver, reducedMotion, isSettingsOpen]);
 
   // Auto-hide controls
   React.useEffect(() => {
@@ -275,7 +210,7 @@ export function App() {
       setShowControls(true);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       hideTimerRef.current = setTimeout(() => {
-        if (!isSettingsOpen && !isInfoOpen && !isTimerOpen && !isVoiceOpen)
+        if (!isSettingsOpen && !isInfoOpen && !isTimerOpen && !voiceBusy)
           setShowControls(false);
       }, 10000);
     };
@@ -296,7 +231,7 @@ export function App() {
     isSettingsOpen,
     isInfoOpen,
     isTimerOpen,
-    isVoiceOpen,
+    voiceBusy,
   ]);
 
   const bgStyle: React.CSSProperties = React.useMemo(() => {
@@ -455,7 +390,7 @@ export function App() {
                 driftOffset={driftApplied}
                 prefersReducedMotion={reducedMotion}
                 fontWeight={settings.fontWeight}
-                refreshKey={0}
+                refreshKey={time.revision}
                 animationMode={settings.animationMode}
                 topText={effectiveTopText}
                 bottomText={effectiveBottomText}
@@ -486,7 +421,7 @@ export function App() {
             showBottomText={effectiveShowBottomText}
             driftOffset={driftApplied}
             prefersReducedMotion={reducedMotion}
-            refreshKey={0}
+            refreshKey={time.revision}
             onTransformChange={(x, y, s, r) =>
               updateMultiple({
                 clockFloatX: x,
@@ -537,23 +472,22 @@ export function App() {
       <SettingsRail
         section={settingsSection}
         onChange={(section) => {
-          setIsVoiceOpen(false);
+
           setIsTimerOpen(false);
           setIsInfoOpen(false);
           setSettingsSection(section);
         }}
         visible={showControls}
         onTimer={() => {
-          setIsVoiceOpen(false);
+
           setSettingsSection(null);
           setIsTimerOpen(true);
         }}
         onInfo={() => {
-          setIsVoiceOpen(false);
+
           setSettingsSection(null);
           setIsInfoOpen(true);
         }}
-        onVoice={openVoice}
       />
       {settings.enableAMOLEDSaver && settings.amoledSaverMode === 'mesh' && (
         <AmoledMesh
@@ -579,18 +513,36 @@ export function App() {
         isOpen={isTimerOpen}
         onClose={() => setIsTimerOpen(false)}
         timerControls={timerControls}
-        onVoice={openVoice}
       />
 
-      <VoiceTimerPanel
-        open={isVoiceOpen}
-        onClose={() => setIsVoiceOpen(false)}
+      <VoiceTimerButton
+        visible={showControls}
+        enabled={!isSettingsOpen && !isTimerOpen && !isInfoOpen}
+        reducedMotion={reducedMotion}
+        onBusyChange={setVoiceBusy}
         onCreate={(config) => {
           primeAlarmAudio();
           const id = useSettingsStore.getState().addTimer(config);
           if (config.inputMode === 'duration') setVoiceTimerToStart(id);
-          setIsVoiceOpen(false);
-          setIsTimerOpen(true);
+          toast.success('Timer started: ' + (config.label || 'Voice timer'), {
+            description:
+              config.inputMode === 'duration'
+                ? formatMs(
+                    ((config.hours || 0) * 3600 +
+                      (config.minutes || 0) * 60 +
+                      (config.seconds || 0)) * 1000
+                  )
+                : new Date(config.targetDatetime!).toLocaleString(),
+            duration: 10000,
+            action: {
+              label: 'Undo',
+              onClick: () => {
+                setVoiceTimerToStart((pending) => pending === id ? null : pending);
+                useSettingsStore.getState().removeTimer(id);
+                setAlerts((current) => current.filter((alert) => alert.id !== id));
+              },
+            },
+          });
         }}
       />
 
