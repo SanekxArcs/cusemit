@@ -78,6 +78,11 @@ export function VoiceTimerButton({
   }, []);
 
   React.useEffect(() => {
+    const voice = useVoiceStore.getState();
+    if (online && voice.apiKey && !voice.verified) void voice.checkKey();
+  }, [online]);
+
+  React.useEffect(() => {
     if (!enabled || !online || !verified) cancel();
     return cancel;
   }, [enabled, online, verified, apiKey, holdToTalk, cancel]);
@@ -157,7 +162,14 @@ export function VoiceTimerButton({
     setPhase('permission');
     try {
       primeAlarmAudio();
-      const input = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const input = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: { ideal: 1 },
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
       if (generation.current !== token) {
         input.getTracks().forEach((track) => track.stop());
         return;

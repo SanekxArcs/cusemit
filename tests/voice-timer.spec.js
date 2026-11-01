@@ -26,6 +26,17 @@ async function setup(page, options = {}) {
       analysers: 0,
       closed: 0,
     };
+    if (options.delayedDecode) {
+      const NativeDecoder = window.OfflineAudioContext;
+      window.OfflineAudioContext = class extends NativeDecoder {
+        decodeAudioData(bytes) {
+          return new Promise((resolve, reject) => {
+            window.voiceTest.finishDecoding = () =>
+              super.decodeAudioData(bytes).then(resolve, reject);
+          });
+        }
+      };
+    }
     if (options.analyser) {
       window.AudioContext = class {
         constructor() {
@@ -56,6 +67,27 @@ async function setup(page, options = {}) {
     Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
       value: async () => {
         if (options.denied) throw new DOMException('Denied', 'NotAllowedError');
+        if (options.realRecorder) {
+          const context = new AudioContext();
+          const destination = context.createMediaStreamDestination();
+          const oscillator = context.createOscillator();
+          const gain = context.createGain();
+          gain.gain.value = options.silence ? 0 : 0.2;
+          oscillator.frequency.value = 440;
+          oscillator.connect(gain).connect(destination);
+          oscillator.start();
+          await context.resume();
+          for (const track of destination.stream.getTracks()) {
+            const stop = track.stop.bind(track);
+            track.stop = () => {
+              window.voiceTest.stopped++;
+              oscillator.stop();
+              void context.close();
+              stop();
+            };
+          }
+          return destination.stream;
+        }
         const input = {
           getTracks: () => [{ stop: () => window.voiceTest.stopped++ }],
         };
@@ -66,6 +98,18 @@ async function setup(page, options = {}) {
         return input;
       },
     });
+    if (options.realRecorder) {
+      const NativeRecorder = window.MediaRecorder;
+      window.MediaRecorder = class extends NativeRecorder {
+        constructor(input, config) {
+          super(input, config);
+          this.addEventListener('dataavailable', () => {
+            window.voiceTest.chunks = (window.voiceTest.chunks || 0) + 1;
+          });
+        }
+      };
+      return;
+    }
     window.MediaRecorder = class {
       static isTypeSupported() {
         return true;
@@ -80,8 +124,45 @@ async function setup(page, options = {}) {
       }
       stop() {
         this.state = 'inactive';
+        const sampleRate = 16000;
+        const length = options.short ? 1600 : sampleRate;
+        const channels = options.stereo ? 2 : 1;
+        const buffer = new ArrayBuffer(44 + length * channels * 2);
+        const view = new DataView(buffer);
+        const text = (offset, value) => {
+          for (let index = 0; index < value.length; index++)
+            view.setUint8(offset + index, value.charCodeAt(index));
+        };
+        text(0, 'RIFF');
+        view.setUint32(4, buffer.byteLength - 8, true);
+        text(8, 'WAVE');
+        text(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, channels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * channels * 2, true);
+        view.setUint16(32, channels * 2, true);
+        view.setUint16(34, 16, true);
+        text(36, 'data');
+        view.setUint32(40, buffer.byteLength - 44, true);
+        for (let index = 0; index < length; index++) {
+          const sample = options.silence
+            ? 0
+            : Math.round(
+                Math.sin((index * 2 * Math.PI * 440) / sampleRate) *
+                  (options.quiet ? 3 : 6000)
+              );
+          view.setInt16(
+            44 + (index * channels + channels - 1) * 2,
+            sample,
+            true
+          );
+        }
         this.ondataavailable?.({
-          data: new Blob(['test-audio'], { type: this.mimeType }),
+          data: new Blob([options.corrupt ? 'invalid-audio' : buffer], {
+            type: this.mimeType,
+          }),
         });
         this.onstop?.();
       }
@@ -150,7 +231,7 @@ const timers = (page) =>
     () => JSON.parse(localStorage.getItem('app.clock.settings.v1')).timers || []
   );
 
-test('tap recording auto-starts a timer, never persists the key, and Undo removes it', async ({
+test('tap recording auto-starts a timer, persists the key, and Undo removes it', async ({
   page,
 }) => {
   await setup(page);
@@ -160,10 +241,15 @@ test('tap recording auto-starts a timer, never persists the key, and Undo remove
   const request = await sent;
   expect(request.headers()['x-goog-api-key']).toBe('test-key-not-real');
   expect(request.url()).not.toContain('test-key');
-  expect(request.postDataJSON().contents[0].parts[1].inlineData).toEqual({
-    mimeType: 'audio/webm',
-    data: 'dGVzdC1hdWRpbw==',
-  });
+  const audio = request.postDataJSON().contents[0].parts[1].inlineData;
+  const wav = Buffer.from(audio.data, 'base64');
+  expect(audio.mimeType).toBe('audio/wav');
+  expect(wav.toString('ascii', 0, 4)).toBe('RIFF');
+  expect(wav.toString('ascii', 8, 12)).toBe('WAVE');
+  expect(wav.readUInt16LE(22)).toBe(1);
+  expect(wav.readUInt32LE(24)).toBe(16000);
+  expect(wav.readUInt16LE(34)).toBe(16);
+  expect(wav.readUInt32LE(40)).toBe(wav.length - 44);
   await expect(notices(page)).toContainText('Timer started: Чай');
   await page.getByRole('button', { name: 'Timers', exact: true }).click();
   await expect(page.locator('.timer-readout')).toContainText('00:00:30Running');
@@ -174,7 +260,7 @@ test('tap recording auto-starts a timer, never persists the key, and Undo remove
         session: { ...sessionStorage },
       })
     )
-  ).not.toContain('test-key-not-real');
+  ).toContain('test-key-not-real');
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect(page.locator('.timer-readout')).toHaveCount(0);
   expect(await page.evaluate(() => window.voiceTest.stopped)).toBe(1);
@@ -249,7 +335,7 @@ test('no key or rejected key never shows a microphone', async ({ page }) => {
   await expect(page.locator('.voice-dock')).toHaveCount(0);
 });
 
-test('cancel and settings release the microphone without uploading; reload forgets key', async ({
+test('cancel and settings release the microphone without uploading; Forget key survives reload', async ({
   page,
 }) => {
   await setup(page);
@@ -273,7 +359,7 @@ test('cancel and settings release the microphone without uploading; reload forge
   await expect(page.locator('.voice-dock')).toHaveCount(0);
 });
 
-test('hold release sends once, mode persists but key does not', async ({
+test('hold release sends once, mode and key persist with automatic verification', async ({
   page,
 }) => {
   await setup(page, { hold: true });
@@ -294,7 +380,8 @@ test('hold release sends once, mode persists but key does not', async ({
   await expect(
     page.getByRole('switch', { name: 'Hold to talk' })
   ).toBeChecked();
-  await expect(page.getByLabel('Gemini API key', { exact: true })).toBeEmpty();
+  await expect(page.getByLabel('Gemini API key', { exact: true })).toHaveValue('test-key-not-real');
+  await expect(page.getByRole('button', { name: 'Key verified' })).toBeVisible();
 });
 
 test('release before microphone permission resolves discards late input', async ({
@@ -505,6 +592,174 @@ test('hidden tab discards recording without uploading', async ({ page }) => {
   await expect(page.locator('.voice-feedback')).toHaveCount(0);
   expect(uploads).toBe(0);
   expect(await page.evaluate(() => window.voiceTest.stopped)).toBe(1);
+});
+
+for (const label of ['', undefined]) {
+  test(
+    'audible timer without a name starts with a fallback name: ' +
+      String(label),
+    async ({ page }) => {
+      await setup(page);
+      await reply(page, { ...duration, label });
+      await record(page);
+      await expect(notices(page)).toContainText('Timer started: Timer');
+      expect((await timers(page))[0].label).toBe('Timer');
+    }
+  );
+}
+
+test('unclear command shows what Gemini actually heard instead of claiming microphone silence', async ({
+  page,
+}) => {
+  await setup(page);
+  await reply(page, {
+    ...duration,
+    transcript: 'Hello everyone',
+    mode: 'unclear',
+  });
+  await record(page);
+  await expect(notices(page)).toContainText('Heard “Hello everyone”');
+  expect(await timers(page)).toHaveLength(0);
+});
+
+for (const [name, options, message] of [
+  ['silence', { silence: true }, 'microphone recorded silence'],
+  ['short recording', { short: true }, 'recording was too short'],
+  [
+    'corrupt recording',
+    { corrupt: true },
+    'could not read the microphone recording',
+  ],
+]) {
+  test(
+    name + ' is detected locally without sending audio or invalidating the key',
+    async ({ page }) => {
+      await setup(page, options);
+      let uploads = 0;
+      await page.route(endpoint, (route) => {
+        uploads++;
+        return route.abort();
+      });
+      await record(page);
+      await expect(notices(page)).toContainText(message);
+      expect(uploads).toBe(0);
+      expect(await timers(page)).toHaveLength(0);
+      await expect(
+        page.getByRole('button', { name: 'Record command' })
+      ).toBeEnabled();
+    }
+  );
+}
+
+for (const options of [{ quiet: true }, { stereo: true }]) {
+  test(
+    'quiet or secondary-channel audio is preserved: ' + JSON.stringify(options),
+    async ({ page }) => {
+      await setup(page, options);
+      await reply(page);
+      const sent = page.waitForRequest(endpoint);
+      await record(page);
+      const wav = Buffer.from(
+        (await sent).postDataJSON().contents[0].parts[1].inlineData.data,
+        'base64'
+      );
+      let peak = 0;
+      for (let offset = 44; offset < wav.length; offset += 2)
+        peak = Math.max(peak, Math.abs(wav.readInt16LE(offset)));
+      expect(peak).toBeGreaterThan(0);
+      await expect(notices(page)).toContainText('Timer started');
+    }
+  );
+}
+
+test('native MediaRecorder WebM chunks are decoded into audible complete PCM WAV before upload', async ({
+  page,
+}) => {
+  await setup(page, { realRecorder: true });
+  await reply(page);
+  const sent = page.waitForRequest(endpoint);
+  await page.getByRole('button', { name: 'Record command' }).click();
+  await expect
+    .poll(() => page.evaluate(() => window.voiceTest.chunks || 0))
+    .toBeGreaterThanOrEqual(1);
+  await page.getByRole('button', { name: 'Stop & interpret' }).click();
+  const audio = (await sent).postDataJSON().contents[0].parts[1].inlineData;
+  const wav = Buffer.from(audio.data, 'base64');
+  expect(audio.mimeType).toBe('audio/wav');
+  expect(wav.toString('ascii', 0, 4)).toBe('RIFF');
+  expect(wav.readUInt32LE(24)).toBe(16000);
+  const samples = (wav.length - 44) / 2;
+  expect(samples / 16000).toBeGreaterThan(0.8);
+  let energy = 0;
+  for (let offset = 44; offset < wav.length; offset += 2)
+    energy += (wav.readInt16LE(offset) / 32768) ** 2;
+  expect(Math.sqrt(energy / samples)).toBeGreaterThan(0.05);
+  expect(
+    await page.evaluate(() => window.voiceTest.chunks)
+  ).toBeGreaterThanOrEqual(2);
+  await expect(notices(page)).toContainText('Timer started');
+});
+
+test('audio request error does not revoke a verified key', async ({ page }) => {
+  await setup(page);
+  await reply(page, duration, 400);
+  await record(page);
+  await expect(notices(page)).toContainText(
+    'could not process the audio request'
+  );
+  await expect(
+    page.getByRole('button', { name: 'Record command' })
+  ).toBeEnabled();
+});
+
+test('cancel during local decoding discards audio without uploading a late result', async ({
+  page,
+}) => {
+  await setup(page, { delayedDecode: true });
+  let uploads = 0;
+  await page.route(endpoint, (route) => {
+    uploads++;
+    return route.abort();
+  });
+  await record(page);
+  await expect
+    .poll(() => page.evaluate(() => typeof window.voiceTest.finishDecoding))
+    .toBe('function');
+  await page.getByRole('button', { name: 'Cancel voice timer' }).click();
+  await page.evaluate(() => window.voiceTest.finishDecoding());
+  await expect(
+    page.getByRole('button', { name: 'Record command' })
+  ).toBeEnabled();
+  expect(uploads).toBe(0);
+  expect(await timers(page)).toHaveLength(0);
+});
+
+test('missing transcription is not mistaken for a valid unnamed timer', async ({
+  page,
+}) => {
+  await setup(page);
+  await reply(page, { ...duration, transcript: '', label: '' });
+  await record(page);
+  await expect(notices(page)).toContainText('Gemini could not transcribe');
+  expect(await timers(page)).toHaveLength(0);
+});
+
+test('invalid API key in an HTTP 400 response still hides the microphone', async ({
+  page,
+}) => {
+  await setup(page);
+  await page.route(endpoint, (route) =>
+    route.fulfill({
+      status: 400,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        error: { details: [{ reason: 'API_KEY_INVALID' }] },
+      }),
+    })
+  );
+  await record(page);
+  await expect(notices(page)).toContainText('Gemini rejected this API key');
+  await expect(page.locator('.voice-dock')).toHaveCount(0);
 });
 
 for (const width of [390, 1440]) {

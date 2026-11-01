@@ -1,62 +1,18 @@
-import React from 'react';
 import { useVoiceStore } from '@/store/voice';
 import { VOICE_MODEL } from '@/lib/voiceTimer';
 import { Button, Input, Section, Toggle } from './ui/controls';
 
 export function VoiceSettings() {
-  const { apiKey, verified, setKey, holdToTalk, setHoldToTalk } =
-    useVoiceStore();
-  const [checking, setChecking] = React.useState(false);
-  const [error, setError] = React.useState('');
-  const request = React.useRef<AbortController | null>(null);
-  React.useEffect(() => () => request.current?.abort(), []);
-
-  async function checkKey() {
-    request.current?.abort();
-    const controller = new AbortController();
-    request.current = controller;
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    setChecking(true);
-    setError('');
-    try {
-      if (!navigator.onLine)
-        throw new Error('Connect to the internet to check your key.');
-      const response = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/' +
-          VOICE_MODEL,
-        {
-          headers: { 'x-goog-api-key': apiKey.trim() },
-          signal: controller.signal,
-        }
-      );
-      if (!response.ok)
-        throw new Error(
-          response.status === 429
-            ? 'Gemini quota reached. Wait and try again.'
-            : 'Key check failed. Check your API key, restrictions and model access.'
-        );
-      const model = await response.json();
-      if (!model.supportedGenerationMethods?.includes('generateContent'))
-        throw new Error('This key cannot access the voice timer model.');
-      if (request.current === controller && !controller.signal.aborted)
-        setKey(apiKey.trim(), true);
-    } catch (failure) {
-      if (request.current === controller)
-        setError(
-          controller.signal.aborted
-            ? 'Key check timed out. Please try again.'
-            : failure instanceof Error
-              ? failure.message
-              : 'Could not reach Gemini.'
-        );
-    } finally {
-      clearTimeout(timeout);
-      if (request.current === controller) {
-        request.current = null;
-        setChecking(false);
-      }
-    }
-  }
+  const {
+    apiKey,
+    verified,
+    setKey,
+    holdToTalk,
+    setHoldToTalk,
+    checking,
+    error,
+    checkKey,
+  } = useVoiceStore();
 
   return (
     <>
@@ -72,7 +28,6 @@ export function VoiceSettings() {
             disabled={checking}
             onChange={(event) => {
               setKey(event.target.value);
-              setError('');
             }}
           />
         </label>
@@ -87,11 +42,7 @@ export function VoiceSettings() {
             <Button
               variant="ghost"
               onClick={() => {
-                request.current?.abort();
-                request.current = null;
-                setChecking(false);
                 setKey('');
-                setError('');
               }}
             >
               Forget key
@@ -99,8 +50,10 @@ export function VoiceSettings() {
           )}
         </div>
         <p className="voice-note">
-          {VOICE_MODEL}. Key stays only in this tab’s memory, never saved or
-          synced.{' '}
+          {VOICE_MODEL}. Your key is saved in this browser and included in
+          manual settings sync. Browser storage is not encrypted. Anyone with
+          your sync code can retrieve the key; sync is not end-to-end encrypted.
+          Forget key removes it here; upload changes to remove the synced copy.{' '}
           <a
             href="https://aistudio.google.com/apikey"
             target="_blank"

@@ -72,16 +72,22 @@ export const SYNCABLE_KEYS = [
 ] as const satisfies readonly (keyof ClockSettings)[];
 
 export type SyncableKey = (typeof SYNCABLE_KEYS)[number];
-export type SyncablePayload = Pick<ClockSettings, SyncableKey>;
+export type SyncablePayload = Pick<ClockSettings, SyncableKey> & {
+  geminiApiKey?: string;
+};
 
 /**
  * Serializes the syncable subset. Keys are written in SYNCABLE_KEYS order so
  * two identical states always produce the identical string — that stable
  * output is what the "nothing to upload" check compares against.
  */
-export function serializeSyncable(settings: ClockSettings): string {
+export function serializeSyncable(
+  settings: ClockSettings,
+  geminiApiKey?: string
+): string {
   const payload: Record<string, unknown> = {};
   for (const key of SYNCABLE_KEYS) payload[key] = settings[key];
+  if (geminiApiKey !== undefined) payload.geminiApiKey = geminiApiKey;
   return JSON.stringify(payload);
 }
 
@@ -117,6 +123,16 @@ export function parseSyncable(payload: string): Partial<ClockSettings> {
     result[key] = value;
   }
   return result as Partial<ClockSettings>;
+}
+
+export function parseSyncedVoiceKey(payload: string): string | undefined {
+  const source: unknown = JSON.parse(payload);
+  if (!source || typeof source !== 'object' || Array.isArray(source))
+    return undefined;
+  const value = (source as Record<string, unknown>).geminiApiKey;
+  return typeof value === 'string' && value.length <= 1024
+    ? value.trim()
+    : undefined;
 }
 
 /** FNV-1a: a short, stable stand-in for the payload so we don't keep a copy. */

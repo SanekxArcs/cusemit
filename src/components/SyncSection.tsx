@@ -12,6 +12,7 @@ import {
 import { toast } from 'sonner';
 import { Button, Input, Section } from './ui/controls';
 import { useSettingsStore } from '@/store/settings';
+import { useVoiceStore } from '@/store/voice';
 import {
   formatCode,
   serializeSyncable,
@@ -31,13 +32,17 @@ function relativeTime(timestamp: number): string {
 
 export function SyncSection() {
   const settings = useSettingsStore((state) => state.settings);
+  const apiKey = useVoiceStore((state) => state.apiKey);
   const { link, busy, error, conflict, createCode, connect, upload, download, disconnect } =
     useSyncStore();
   const [entry, setEntry] = React.useState('');
   const [copied, setCopied] = React.useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = React.useState(false);
 
-  const payload = React.useMemo(() => serializeSyncable(settings), [settings]);
+  const payload = React.useMemo(
+    () => serializeSyncable(settings, apiKey),
+    [settings, apiKey]
+  );
   const dirty = hasLocalChanges(link, payload);
   const working = busy !== 'idle';
 
@@ -69,6 +74,11 @@ export function SyncSection() {
         device using a code. Positioning, timers, and your background image stay
         on this device. Nothing uploads or downloads on its own — only when you
         press a button here.
+      </p>
+      <p className="setting-note">
+        Your Gemini API key is also included. Anyone with this code can retrieve
+        or replace it; sync is not end-to-end encrypted. Keep the code private.
+        After forgetting a key, upload changes to remove the synced copy.
       </p>
 
       {link === null ? (

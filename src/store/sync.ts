@@ -2,10 +2,12 @@ import { create } from 'zustand';
 import { ConvexHttpClient } from 'convex/browser';
 import { api } from '../../convex/_generated/api';
 import { useSettingsStore } from '@/store/settings';
+import { useVoiceStore } from '@/store/voice';
 import {
   fingerprint,
   normalizeCode,
   parseSyncable,
+  parseSyncedVoiceKey,
   serializeSyncable,
 } from '@/lib/syncableSettings';
 
@@ -82,7 +84,10 @@ function loadLink(): SyncLink | null {
 }
 
 function currentPayload(): string {
-  return serializeSyncable(useSettingsStore.getState().settings);
+  return serializeSyncable(
+    useSettingsStore.getState().settings,
+    useVoiceStore.getState().apiKey
+  );
 }
 
 function message(error: unknown): string {
@@ -140,7 +145,7 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
       const link: SyncLink = {
         code,
         revision: remote.revision,
-        fingerprint: fingerprint(currentPayload()),
+        fingerprint: downloadedFingerprint(remote.payload),
         syncedAt: remote.updatedAt,
       };
       persist(link);
@@ -210,7 +215,7 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
       const next: SyncLink = {
         code: link.code,
         revision: remote.revision,
-        fingerprint: fingerprint(currentPayload()),
+        fingerprint: downloadedFingerprint(remote.payload),
         syncedAt: remote.updatedAt,
       };
       persist(next);
@@ -228,11 +233,27 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
 
 function applyRemote(payload: string) {
   const updates = parseSyncable(payload);
+  const apiKey = parseSyncedVoiceKey(payload);
   const store = useSettingsStore.getState();
   store.updateMultiple(updates);
   // updateMultiple debounces its write; downloaded settings should survive an
   // immediate reload, so write them out now.
   store.flushPersist();
+  if (apiKey !== undefined) {
+    const voice = useVoiceStore.getState();
+    if (apiKey !== voice.apiKey) voice.setKey(apiKey);
+    if (apiKey && !useVoiceStore.getState().verified) void voice.checkKey();
+  }
+}
+
+function downloadedFingerprint(payload: string): string {
+  if (
+    parseSyncedVoiceKey(payload) === undefined &&
+    useVoiceStore.getState().apiKey
+  ) {
+    return fingerprint(serializeSyncable(useSettingsStore.getState().settings));
+  }
+  return fingerprint(currentPayload());
 }
 
 /**
