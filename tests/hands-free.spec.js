@@ -18,7 +18,7 @@ async function setup(page, options = {}) {
           'app.clock.settings.v1',
           JSON.stringify({
             animationMode: 'none',
-            autoHideControls: false,
+            autoHideControls: options.autoHideControls ?? false,
             timers: [],
           })
         );
@@ -91,7 +91,7 @@ async function feed(page, frames, amplitude) {
     { frames, amplitude }
   );
 }
-async function reply(page, status = 200) {
+async function reply(page, status = 200, mode = 'duration') {
   await page.route(endpoint, (route) =>
     route.fulfill({
       status,
@@ -105,7 +105,7 @@ async function reply(page, status = 200) {
                   text: JSON.stringify({
                     transcript: 'five minutes for tea',
                     label: 'Tea',
-                    mode: 'duration',
+                    mode,
                     durationSeconds: 300,
                     targetDatetime: '',
                   }),
@@ -123,6 +123,38 @@ async function timers(page) {
     () => JSON.parse(localStorage.getItem('app.clock.settings.v1')).timers || []
   );
 }
+
+test('armed microphone hides with side controls and screen input reveals it without stopping listening', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-11-01T12:00:00Z') });
+  await setup(page, { autoHideControls: true });
+  await enable(page);
+  const stops = await page.evaluate(() => window.hf.stops);
+  const waitForIdle = async () => {
+    for (let second = 0; second < 11; second++) {
+      await feed(page, 1, 0);
+      await page.clock.fastForward(1000);
+    }
+  };
+  await waitForIdle();
+  await expect(dock(page)).toHaveClass(/voice-dock-hidden/);
+  await expect(dock(page)).toHaveAttribute('inert', '');
+  await expect(page.locator('.settings-rail')).toHaveClass(/rail-hidden/);
+  await expect(page.locator('.voice-handsfree')).toContainText('Say “Computer”');
+  await expect(dock(page)).toHaveAttribute('data-phase', 'armed');
+  expect(await page.evaluate(() => window.hf.stops)).toBe(stops);
+  await page.mouse.click(200, 200);
+  await expect(dock(page)).not.toHaveClass(/voice-dock-hidden/);
+  await expect(dock(page)).not.toHaveAttribute('inert', '');
+  await expect(page.locator('.settings-rail')).not.toHaveClass(/rail-hidden/);
+  await waitForIdle();
+  await expect(dock(page)).toHaveClass(/voice-dock-hidden/);
+  await page.dispatchEvent('body', 'touchstart', { touches: [] });
+  await expect(dock(page)).not.toHaveClass(/voice-dock-hidden/);
+  await waitForIdle();
+  await wake(page);
+  await expect(page.locator('.voice-waves')).toBeVisible();
+  await expect(dock(page)).not.toHaveClass(/voice-dock-hidden/);
+});
 
 test('does not load the SDK, open a listener or upload waiting audio without explicit opt-in', async ({
   page,
@@ -177,6 +209,29 @@ test('wake phrase plus speech sends once after 1.5 seconds of silence, starts ti
   await expect.poll(() => timers(page)).toHaveLength(0);
   await expect(dock(page)).toHaveAttribute('data-phase', 'armed');
 });
+
+for (const mode of ['cancel_last', 'cancel_all']) {
+  test('hands-free ' + mode + ' cancels and Undo restores without leaving armed mode', async ({ page }) => {
+    await setup(page);
+    await reply(page);
+    await enable(page);
+    await wake(page);
+    await feed(page, 12);
+    await feed(page, 47, 0);
+    await expect.poll(() => timers(page)).toHaveLength(1);
+    const original = await timers(page);
+    await expect(dock(page)).toHaveAttribute('data-phase', 'armed');
+    await reply(page, 200, mode);
+    await wake(page);
+    await feed(page, 12);
+    await feed(page, 47, 0);
+    await expect.poll(() => timers(page)).toHaveLength(0);
+    await expect(dock(page)).toHaveAttribute('data-phase', 'armed');
+    await notices(page).filter({ hasText: 'Timer cancelled:' }).getByRole('button', { name: 'Undo' }).click();
+    await expect.poll(() => timers(page)).toEqual(original);
+    await expect(dock(page)).toHaveAttribute('data-phase', 'armed');
+  });
+}
 
 test('a silent false activation returns to waiting without calling Gemini', async ({
   page,

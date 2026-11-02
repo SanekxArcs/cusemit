@@ -231,6 +231,57 @@ const timers = (page) =>
     () => JSON.parse(localStorage.getItem('app.clock.settings.v1')).timers || []
   );
 
+for (const mode of ['cancel_last', 'cancel_all']) {
+  test(mode + ' removes selected timers and Undo restores their identity and progress', async ({ page }) => {
+    await setup(page);
+    await page.getByRole('button', { name: 'Timers', exact: true }).click();
+    await page.getByRole('button', { name: 'Add timer' }).click();
+    await page.getByRole('button', { name: 'Start', exact: true }).click();
+    await page.getByRole('button', { name: 'Add timer' }).click();
+    await page.getByRole('button', { name: 'Close settings' }).click();
+    const original = await timers(page);
+    await page.clock.setFixedTime(new Date('2026-11-01T12:01:00Z'));
+    await reply(page, { ...duration, transcript: mode === 'cancel_all' ? 'cancel all timers' : 'cancel last timer', mode, durationSeconds: 0 });
+    await record(page);
+    const notice = notices(page).filter({ hasText: mode === 'cancel_all' ? '2 timers cancelled' : 'Timer cancelled:' });
+    await expect(notice).toBeVisible();
+    await expect.poll(async () => (await timers(page)).map((timer) => timer.id)).toEqual(mode === 'cancel_all' ? [] : [original[0].id]);
+    await notice.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect.poll(() => timers(page)).toEqual(original);
+    await page.getByRole('button', { name: 'Timers', exact: true }).click();
+    await expect(page.locator('.timer-readout').first()).toContainText('00:04:00Running');
+    await expect(page.locator('.timer-readout').nth(1)).not.toContainText('Running');
+  });
+
+  test(mode + ' with no timers does not create a timer', async ({ page }) => {
+    await setup(page);
+    await reply(page, { ...duration, mode, durationSeconds: 0 });
+    await record(page);
+    await expect(notices(page)).toContainText('No timers to cancel');
+    expect(await timers(page)).toEqual([]);
+  });
+}
+
+test('Undo cancellation preserves timers created afterwards', async ({ page }) => {
+  await setup(page);
+  await reply(page);
+  await record(page);
+  await expect.poll(() => timers(page)).toHaveLength(1);
+  const original = (await timers(page))[0];
+  await reply(page, { ...duration, mode: 'cancel_all', transcript: 'cancel all timers' });
+  await record(page);
+  const notice = notices(page).filter({ hasText: 'Timer cancelled:' });
+  await expect(notice).toBeVisible();
+  await reply(page, { ...duration, label: 'New timer' });
+  await record(page);
+  await expect(notices(page).filter({ hasText: 'Timer started: New timer' })).toBeVisible();
+  const newer = (await timers(page))[0];
+  await notices(page).filter({ hasText: 'Timer started: New timer' }).hover();
+  await expect(notice).toHaveAttribute('data-expanded', 'true');
+  await notice.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect.poll(() => timers(page)).toEqual([original, newer]);
+});
+
 test('tap recording auto-starts a timer, persists the key, and Undo removes it', async ({
   page,
 }) => {

@@ -7,9 +7,8 @@ import { useHandsFree } from '@/hooks/useHandsFree';
 import {
   interpretVoiceTimer,
   VoiceKeyError,
-  voiceTimerConfig,
+  type VoiceTimerCommand,
 } from '@/lib/voiceTimer';
-import type { TimerConfig } from '@/store/settings';
 import { Button } from './ui/controls';
 
 export function VoiceTimerButton({
@@ -17,20 +16,20 @@ export function VoiceTimerButton({
   enabled,
   reducedMotion,
   onBusyChange,
-  onCreate,
+  onCommand,
 }: {
   visible: boolean;
   enabled: boolean;
   reducedMotion: boolean;
   onBusyChange: (busy: boolean) => void;
-  onCreate: (config: Partial<Omit<TimerConfig, 'id'>>) => void;
+  onCommand: (command: VoiceTimerCommand) => void;
 }) {
   const { apiKey, verified, holdToTalk } = useVoiceStore();
   const [online, setOnline] = React.useState(navigator.onLine);
   const bars = React.useRef<HTMLDivElement | null>(null);
   const stopWaves = React.useRef<(() => void) | null>(null);
-  const createRef = React.useRef(onCreate);
-  createRef.current = onCreate;
+  const commandRef = React.useRef(onCommand);
+  commandRef.current = onCommand;
   const [phase, setPhase] = React.useState<
     'idle' | 'permission' | 'recording' | 'processing'
   >('idle');
@@ -53,7 +52,7 @@ export function VoiceTimerButton({
   const handsFree = useHandsFree({
     allowed: enabled && online && verified && supported && phase === 'idle',
     apiKey,
-    onCreate: (config) => createRef.current(config),
+    onCommand: (command) => commandRef.current(command),
     onLevel: updateLevel,
   });
 
@@ -232,7 +231,7 @@ export function VoiceTimerButton({
             controller.signal
           );
           if (generation.current === token)
-            createRef.current(voiceTimerConfig(result));
+            commandRef.current(result);
         } catch (failure) {
           if (generation.current === token) {
             if (failure instanceof VoiceKeyError)
@@ -279,6 +278,7 @@ export function VoiceTimerButton({
   const active = phase !== 'idle' || (handsFree.enabled && handsFree.phase !== 'off');
   const recording = phase === 'recording' || handsFree.phase === 'recording';
   const working = phase === 'permission' || phase === 'processing' || handsFree.phase === 'loading' || handsFree.phase === 'processing';
+  const dockHidden = !visible && phase === 'idle' && !recording && !working;
   const label = handsFree.enabled
     ? handsFree.phase === 'recording' ? 'Send hands-free command'
       : working ? 'Preparing hands-free command' : 'Record hands-free command'
@@ -344,9 +344,9 @@ export function VoiceTimerButton({
       <div
         className={
           'voice-dock' + (handsFree.enabled ? ' voice-dock-handsfree' : '') +
-          (!visible && !active ? ' voice-dock-hidden' : '')
+          (dockHidden ? ' voice-dock-hidden' : '')
         }
-        inert={!visible && !active}
+        inert={dockHidden}
         data-phase={handsFree.enabled ? handsFree.phase : phase}
       >
         {!handsFree.enabled && feedback}

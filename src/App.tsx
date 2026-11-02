@@ -26,11 +26,12 @@ import { useClockTime } from '@/hooks/useClockTime';
 import { useBrightness } from '@/hooks/useBrightness';
 
 import { InfoDialog } from '@/components/InfoDialog';
-import { useTimerArray, formatMs } from '@/hooks/useTimerArray';
+import { useTimerArray, formatMs, type TimerState } from '@/hooks/useTimerArray';
+import { voiceTimerConfig } from '@/lib/voiceTimer';
 import { FloatingTimerWidget } from '@/components/TimerWidget';
 import { FloatingClock } from '@/components/FloatingClock';
 import { TimerAlarm, type TimerAlert } from '@/components/TimerAlarm';
-import { loadCustomSound, primeAlarmAudio } from '@/lib/alarm';
+import { loadCustomSound, deleteCustomSound, primeAlarmAudio } from '@/lib/alarm';
 
 // Background tabs tick about once a minute; leave room for that.
 const ALARM_RECENT_MS = 2 * 60 * 1000;
@@ -45,6 +46,8 @@ export function App() {
   const [voiceBusy, setVoiceBusy] = React.useState(false);
   const [voiceTimerToStart, setVoiceTimerToStart] =
     React.useState<string | null>(null);
+  const [voiceTimersToRestore, setVoiceTimersToRestore] =
+    React.useState<Record<string, TimerState>>({});
 
   const time = useClockTime(settings.clockFormat, settings.showSeconds);
   const [showControls, setShowControls] = React.useState(true);
@@ -75,6 +78,7 @@ export function App() {
       // removeTimer deletes) so it keeps going after an auto-delete.
       const customBlob =
         cfg.alarmSound === 'custom' ? await loadCustomSound(id) : null;
+      if (!useSettingsStore.getState().settings.timers.includes(cfg)) return;
       setAlerts((prev) => [
         ...prev.filter((a) => a.id !== id),
         {
@@ -88,9 +92,19 @@ export function App() {
     }
     if (cfg.autoDelete) {
       // Small delay so the "expired" state is visible for a moment before deletion
-      setTimeout(() => removeTimer(id), 800);
+      setTimeout(() => {
+        if (useSettingsStore.getState().settings.timers.includes(cfg)) removeTimer(id);
+      }, 800);
     }
   });
+
+  React.useEffect(() => {
+    if (!Object.keys(voiceTimersToRestore).length) return;
+    for (const [id, snapshot] of Object.entries(voiceTimersToRestore)) {
+      timerControls[id]?.restore(snapshot);
+    }
+    setVoiceTimersToRestore({});
+  }, [voiceTimersToRestore, timerControls]);
 
   React.useEffect(() => {
     if (!voiceTimerToStart) return;
@@ -522,7 +536,67 @@ export function App() {
         enabled={!isSettingsOpen && !isTimerOpen && !isInfoOpen}
         reducedMotion={reducedMotion}
         onBusyChange={setVoiceBusy}
-        onCreate={(config) => {
+        onCommand={(command) => {
+          if (command.mode === 'cancel_last' || command.mode === 'cancel_all') {
+            const store = useSettingsStore.getState();
+            const current = store.settings.timers;
+            const cancelled = command.mode === 'cancel_all' ? current : current.slice(-1);
+            if (!cancelled.length) {
+              toast.info('No timers to cancel');
+              return;
+            }
+            const ids = new Set(cancelled.map((timer) => timer.id));
+            const snapshots: Record<string, TimerState> = {};
+            for (const timer of cancelled) {
+              const control = timerControls[timer.id];
+              if (control) snapshots[timer.id] = {
+                remainingMs: control.remainingMs,
+                isRunning: control.isRunning,
+                isExpired: control.isExpired,
+              };
+            }
+            setVoiceTimerToStart((pending) => pending && ids.has(pending) ? null : pending);
+            store.updateMultiple({ timers: current.filter((timer) => !ids.has(timer.id)) });
+            setAlerts((active) => active.filter((alert) => !ids.has(alert.id)));
+            let canUndo = true;
+            const cleanup = () => {
+              if (!canUndo) return;
+              canUndo = false;
+              for (const timer of cancelled) {
+                if (!useSettingsStore.getState().settings.timers.some((live) => live.id === timer.id))
+                  void deleteCustomSound(timer.id);
+              }
+            };
+            toast.success(cancelled.length === 1 ? 'Timer cancelled: ' + cancelled[0].label : cancelled.length + ' timers cancelled', {
+              description: 'Undo restores the remaining time at cancellation.',
+              duration: 10000,
+              onDismiss: cleanup,
+              onAutoClose: cleanup,
+              action: {
+                label: 'Undo',
+                onClick: () => {
+                  if (!canUndo) return;
+                  canUndo = false;
+
+                  const latest = useSettingsStore.getState();
+                  const live = latest.settings.timers;
+                  const restored = cancelled.filter(
+                    (timer) => !live.some((existing) => existing.id === timer.id)
+                  );
+                  const merged = [...live];
+                  const runtime: Record<string, TimerState> = {};
+                  for (const timer of restored) {
+                    merged.splice(Math.min(current.indexOf(timer), merged.length), 0, timer);
+                    if (snapshots[timer.id]) runtime[timer.id] = snapshots[timer.id];
+                  }
+                  latest.updateMultiple({ timers: merged });
+                  setVoiceTimersToRestore((pending) => ({ ...pending, ...runtime }));
+                },
+              },
+            });
+            return;
+          }
+          const config = voiceTimerConfig(command);
           primeAlarmAudio();
           const id = useSettingsStore.getState().addTimer(config);
           if (config.inputMode === 'duration') setVoiceTimerToStart(id);

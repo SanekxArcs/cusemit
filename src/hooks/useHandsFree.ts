@@ -4,24 +4,23 @@ import { useHandsFreeStore } from '@/store/handsFree';
 import { SilenceRecorder, frameLevel } from '@/lib/handsFreeAudio';
 import {
   interpretVoiceTimer,
-  voiceTimerConfig,
+  type VoiceTimerCommand,
   VoiceKeyError,
 } from '@/lib/voiceTimer';
 import { playVoiceCue } from '@/lib/alarm';
 import { useVoiceStore } from '@/store/voice';
-import type { TimerConfig } from '@/store/settings';
 
 export type HandsFreePhase =
   'off' | 'loading' | 'armed' | 'recording' | 'processing';
 export function useHandsFree({
   allowed,
   apiKey,
-  onCreate,
+  onCommand,
   onLevel,
 }: {
   allowed: boolean;
   apiKey: string;
-  onCreate: (config: Partial<Omit<TimerConfig, 'id'>>) => void;
+  onCommand: (command: VoiceTimerCommand) => void;
   onLevel: (level: number) => void;
 }) {
   const {
@@ -31,8 +30,8 @@ export function useHandsFree({
     setEnabled,
   } = useHandsFreeStore();
   const [phase, setPhase] = React.useState<HandsFreePhase>('off');
-  const callbacks = React.useRef({ onCreate, onLevel });
-  callbacks.current = { onCreate, onLevel };
+  const callbacks = React.useRef({ onCommand, onLevel });
+  callbacks.current = { onCommand, onLevel };
   const controls = React.useRef({ start: () => {}, finish: () => {} });
   React.useEffect(() => {
     if (!enabled) return;
@@ -110,7 +109,7 @@ export function useHandsFree({
           controller.signal
         );
         if (!session.signal.aborted && !controller.signal.aborted)
-          callbacks.current.onCreate(voiceTimerConfig(result));
+          callbacks.current.onCommand(result);
       } catch (failure) {
         if (!session.signal.aborted) {
           if (failure instanceof VoiceKeyError) {

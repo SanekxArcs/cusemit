@@ -11,6 +11,7 @@ export interface TimerControls extends TimerState {
   play: () => void
   pause: () => void
   reset: () => void
+  restore: (state: TimerState) => void
 }
 
 function calcDurationMs(config: TimerConfig): number {
@@ -179,12 +180,20 @@ export function useTimerArray(
   }, []) // runs once; uses refs for fresh data
 
   // Stable closures per timer id – created once, never recreated on re-render
-  const stableControlsRef = React.useRef<Record<string, { play: () => void; pause: () => void; reset: () => void }>>({})
+  const stableControlsRef = React.useRef<Record<string, Pick<TimerControls, 'play' | 'pause' | 'reset' | 'restore'>>>({})
 
   for (const config of configs) {
     const id = config.id
     if (!stableControlsRef.current[id]) {
       stableControlsRef.current[id] = {
+        restore(snapshot) {
+          const cfg = configsRef.current.find((timer) => timer.id === id)
+          if (!cfg || cfg.inputMode !== 'duration') return
+          endTimestampsRef.current[id] = snapshot.isRunning ? Date.now() + snapshot.remainingMs : null
+          if (snapshot.isExpired) firedExpireRef.current.add(id)
+          else firedExpireRef.current.delete(id)
+          setStates((prev) => ({ ...prev, [id]: { ...snapshot } }))
+        },
         play() {
           const s = statesRef.current[id]
           const cfg = configsRef.current.find((c) => c.id === id)
