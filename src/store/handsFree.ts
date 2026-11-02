@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type WakePhrase = 'Computer' | 'Hey Clock' | 'Hey Cusemit';
+export type WakePhrase = 'Computer' | 'Hey Clock' | 'One Plus';
 type WakeConfig = {
   phrase: WakePhrase;
   silenceMs: number;
@@ -21,8 +21,10 @@ function load(): WakeConfig {
         '{}'
     );
     const config: WakeConfig = {
-      phrase: ['Computer', 'Hey Clock', 'Hey Cusemit'].includes(saved.phrase)
-        ? saved.phrase : defaults.phrase,
+      phrase: saved.phrase === 'Hey Cusemit'
+        ? 'One Plus'
+        : ['Computer', 'Hey Clock', 'One Plus'].includes(saved.phrase)
+          ? saved.phrase : defaults.phrase,
       silenceMs: typeof saved.silenceMs === 'number' && Number.isFinite(saved.silenceMs)
         ? Math.max(1000, Math.min(3000, saved.silenceMs)) : 1500,
     };

@@ -1,7 +1,7 @@
 const phrases = {
   Computer: '▁COMP U TER',
   'Hey Clock': '▁HE Y ▁C LO CK',
-  'Hey Cusemit': '▁HE Y ▁C U SE M IT',
+  'One Plus': '▁ONE ▁P LU S',
 };
 let recognizer;
 let stream;

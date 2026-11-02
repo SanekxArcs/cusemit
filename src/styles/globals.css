@@ -280,6 +280,83 @@ select:focus-visible,
   animation: none;
   transition: transform 65ms linear;
 }
+.voice-dock-handsfree .voice-cancel.ui-button {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 1px solid #ffffff26;
+}
+.voice-dock-handsfree .voice-cancel.ui-button::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+.voice-feedback.voice-handsfree {
+  position: fixed;
+  z-index: 60;
+  left: 50%;
+  bottom: max(26px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(320px, calc(100vw - 176px));
+  padding: 0;
+  gap: 9px;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  text-align: center;
+  pointer-events: none;
+}
+.voice-handsfree .voice-status-text {
+  color: #a1a1aa;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.voice-handsfree .voice-status-text strong {
+  color: #f4f4f5;
+  font-weight: 500;
+}
+.voice-handsfree:not([data-phase='armed']) .voice-status-text {
+  color: #f4f4f5;
+}
+.voice-capsule {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 140px;
+  height: 68px;
+  border: 1px solid #ffffff26;
+  border-radius: 999px;
+  background: #17191c;
+  animation: voice-capsule-in 180ms ease-out;
+}
+.voice-capsule .voice-waves {
+  height: 40px;
+}
+.voice-capsule .voice-waves i {
+  height: 38px;
+}
+.voice-handsfree-detail {
+  color: #71717a;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.voice-feedback[data-reduced-motion='true'] .voice-waves i,
+.voice-feedback[data-reduced-motion='true'] .voice-spinner,
+.voice-feedback[data-reduced-motion='true'] .voice-capsule {
+  animation: none;
+  transition: none;
+}
+.voice-feedback[data-reduced-motion='true'] .voice-waves i {
+  transform: scaleY(0.45);
+}
+@keyframes voice-capsule-in {
+  from { opacity: 0; translate: 0 6px; }
+  to { opacity: 1; translate: 0 0; }
+}
 .voice-spinner {
   animation: voice-spin 0.9s linear infinite;
 }
@@ -299,6 +376,7 @@ select:focus-visible,
     transition: none;
   }
   .voice-waves i,
+  .voice-capsule,
   .voice-spinner {
     animation: none;
   }

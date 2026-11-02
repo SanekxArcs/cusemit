@@ -20,13 +20,12 @@ export function HandsFreeSettings() {
         options={[
           { value: 'Computer', label: 'Computer' },
           { value: 'Hey Clock', label: 'Hey Clock' },
-          { value: 'Hey Cusemit', label: 'Hey Cusemit' },
+          { value: 'One Plus', label: 'One Plus' },
         ]}
         onChange={(phrase) => update({ phrase })}
       />
       <p className="voice-note">
-        Say the selected phrase in English. Try “Hey Clock” first; the invented
-        name “Cusemit” is experimental and may be less reliable. This detects a
+        Say “Computer”, “Hey Clock” or “One Plus” in English. This detects a
         phrase, not your identity; voice-example training is not needed or included.
       </p>
       <Range

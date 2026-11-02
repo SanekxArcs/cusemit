@@ -12,7 +12,6 @@ SHA256: f170013b4716e41b62b9bfd809687c207cef798ef9bc6534d524e17af9b6561a
 Unmodified int8 encoder/decoder/joiner renamed from the matching *-epoch-12-avg-2-chunk-16-left-64.int8.onnx files. tokens.txt is unmodified.
 Model card: https://www.modelscope.cn/models/pkufool/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01
 
-Preset token sequences were generated with SentencePiece 0.2.1 from the archive's bpe.model, using uppercase phrase text. No user voice recordings or remote training are needed. “Hey Cusemit” is an experimental spelling, not a validated pronunciation model.
+Preset token sequences were generated with SentencePiece 0.2.1 from the archive's bpe.model, using uppercase phrase text. No user voice recordings or remote training are needed. Current presets: Computer (▁COMP U TER), Hey Clock (▁HE Y ▁C LO CK), One Plus (▁ONE ▁P LU S).
 
 LICENSE contains the Apache-2.0 license distributed with the runtime. wake-worker.js is the app-owned integration, not an upstream file.
-

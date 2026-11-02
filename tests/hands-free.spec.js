@@ -139,7 +139,7 @@ test('does not load the SDK, open a listener or upload waiting audio without exp
   await feed(page, 200);
   expect(sdkRequests).toBe(1);
   expect(audioRequests).toBe(0);
-  await expect(dock(page)).toContainText('Say “Computer”');
+  await expect(page.locator('.voice-handsfree')).toContainText('Say “Computer”');
   expect(await timers(page)).toHaveLength(0);
 });
 
@@ -172,6 +172,7 @@ test('wake phrase plus speech sends once after 1.5 seconds of silence, starts ti
   await expect(dock(page)).toHaveAttribute('data-phase', 'armed');
   expect(uploads).toBe(1);
   await expect.poll(() => timers(page)).toHaveLength(1);
+  expect((await timers(page))[0]).toMatchObject({ autoDelete: true, alarmSound: 'chime' });
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect.poll(() => timers(page)).toHaveLength(0);
   await expect(dock(page)).toHaveAttribute('data-phase', 'armed');
@@ -347,7 +348,7 @@ test('phrase persists but reload never silently reopens the microphone', async (
   expect(await page.evaluate(() => window.hf.starts)).toBe(0);
 });
 
-for (const phrase of ['Hey Clock', 'Hey Cusemit']) {
+for (const phrase of ['Hey Clock', 'One Plus']) {
   test(phrase + ' starts without another key or training', async ({ page }) => {
     await setup(page);
     await settings(page);
@@ -399,4 +400,62 @@ test('daily 04:00 maintenance does not reload an armed hands-free session', asyn
   await page.clock.runFor(2500);
   await expect(dock(page)).toHaveAttribute('data-phase', 'armed');
   expect(await page.evaluate(() => window.hf.starts)).toBe(1);
+});
+
+test('stored Cusemit wake phrase migrates to One Plus', async ({ page }) => {
+  await setup(page);
+  await page.evaluate(() => localStorage.setItem('app.clock.handsfree.v2', JSON.stringify({ phrase: 'Hey Cusemit', silenceMs: 1500 })));
+  await page.reload();
+  await settings(page);
+  await expect(page.getByRole('radio', { name: 'One Plus', exact: true })).toHaveAttribute('data-state', 'on');
+  await expect(page.getByRole('radio', { name: 'Hey Cusemit', exact: true })).toHaveCount(0);
+});
+
+for (const width of [320, 390, 768, 1440]) {
+  test('centered hands-free states fit at ' + width + 'px', async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await setup(page);
+    await enable(page);
+    const status = page.locator('.voice-handsfree');
+    const mic = page.locator('.voice-mic');
+    await expect(status).toContainText('Say “Computer” to trigger');
+    await expect(status.locator('.voice-capsule')).toHaveCount(0);
+    const assertPlacement = async () => {
+      const box = await status.boundingBox();
+      const button = await mic.boundingBox();
+      expect(Math.abs(box.x + box.width / 2 - width / 2)).toBeLessThan(1);
+      expect(box.y + box.height).toBeLessThanOrEqual(880);
+      expect(box.x).toBeGreaterThan(button.x + button.width);
+      expect(button.x).toBeLessThan(30);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    };
+    await assertPlacement();
+    if ([390, 1440].includes(width)) await page.screenshot({ path: 'artifacts/handsfree-' + width + '-armed.png' });
+    await wake(page);
+    await feed(page, 12);
+    await expect(status.locator('.voice-waves i')).toHaveCount(13);
+    await assertPlacement();
+    if ([390, 1440].includes(width)) await page.screenshot({ path: 'artifacts/handsfree-' + width + '-recording.png' });
+    let pending;
+    await page.route(endpoint, route => { pending = route; });
+    await feed(page, 47, 0);
+    await expect(status).toHaveAttribute('data-phase', 'processing');
+    await expect(status.locator('.voice-spinner')).toBeVisible();
+    await assertPlacement();
+    if ([390, 1440].includes(width)) await page.screenshot({ path: 'artifacts/handsfree-' + width + '-processing.png' });
+    await page.getByRole('button', { name: 'Stop hands-free listening' }).click();
+    await pending?.abort().catch(() => {});
+    await expect(status).toHaveCount(0);
+  });
+}
+
+test('hands-free feedback respects reduced motion', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await setup(page);
+  await enable(page);
+  await wake(page);
+  const status = page.locator('.voice-handsfree');
+  await expect(status).toHaveAttribute('data-reduced-motion', 'true');
+  await expect(status.locator('.voice-capsule')).toHaveCSS('animation-name', 'none');
+  await expect(status.locator('.voice-waves i').first()).toHaveCSS('animation-name', 'none');
 });

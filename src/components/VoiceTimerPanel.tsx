@@ -292,109 +292,131 @@ export function VoiceTimerButton({
           ? 'Hold to talk'
           : 'Record command';
 
-  return (
+  const feedback = active ? (
     <div
-      className={
-        'voice-dock' + (!visible && !active ? ' voice-dock-hidden' : '')
-      }
-      inert={!visible && !active}
+      className={"voice-feedback" + (handsFree.enabled ? " voice-handsfree" : "")}
+      role="status"
+      aria-live="polite"
       data-phase={handsFree.enabled ? handsFree.phase : phase}
+      data-reduced-motion={reducedMotion}
     >
-      {active && (
-        <div className="voice-feedback" role="status" aria-live="polite">
-          {recording && (
-            <div className="voice-waves" ref={bars} aria-hidden="true">
-              {Array.from({ length: 13 }, (_, index) => (
-                <i
-                  key={index}
-                  style={
-                    {
-                      '--wave-delay': index * -0.08 + 's',
-                    } as React.CSSProperties
-                  }
-                />
-              ))}
-            </div>
-          )}
-          <span>
-            {recording
-              ? 'Listening…'
-              : handsFree.phase === 'armed'
-                ? 'Say “' + handsFree.phrase + '”'
-                : handsFree.phase === 'loading'
-                  ? 'Starting local listener…'
-                  : phase === 'permission'
-                    ? 'Allow microphone…'
-                    : 'Setting your timer…'}
-          </span>
+      {recording && (
+        <div className={handsFree.enabled ? "voice-capsule" : undefined}>
+          <div className="voice-waves" ref={bars} aria-hidden="true">
+            {Array.from({ length: 13 }, (_, index) => (
+              <i
+                key={index}
+                style={
+                  {
+                    '--wave-delay': index * -0.08 + 's',
+                  } as React.CSSProperties
+                }
+              />
+            ))}
+          </div>
         </div>
       )}
-      <div className="voice-dock-actions">
-        <Button
-          className="voice-mic"
-          aria-label={label}
-          title={label}
-          aria-pressed={recording}
-          aria-busy={working}
-          disabled={phase === 'processing' || (handsFree.enabled && working)}
-          onPointerDown={(event) => {
-            if (handsFree.enabled || !holdToTalk || event.button !== 0 || working) return;
-            event.preventDefault();
-            event.currentTarget.setPointerCapture(event.pointerId);
-            void startRecording();
-          }}
-          onPointerUp={(event) => {
-            if (handsFree.enabled || !holdToTalk) return;
-            event.preventDefault();
-            stopRecording();
-          }}
-          onPointerCancel={() => {
-            if (!handsFree.enabled && holdToTalk) cancel();
-          }}
-          onKeyDown={(event) => {
-            if (!handsFree.enabled && holdToTalk && [' ', 'Enter'].includes(event.key)) {
-              event.preventDefault();
-              if (!event.repeat) void startRecording();
-            }
-          }}
-          onKeyUp={(event) => {
-            if (!handsFree.enabled && holdToTalk && [' ', 'Enter'].includes(event.key)) {
-              event.preventDefault();
-              stopRecording();
-            }
-          }}
-          onClick={() => {
-            if (handsFree.enabled) {
-              if (recording) handsFree.finish();
-              else handsFree.start();
-              return;
-            }
-            if (holdToTalk) return;
-            if (phase === 'recording' || phase === 'permission')
-              stopRecording();
-            else void startRecording();
-          }}
-        >
-          {working ? (
-            <LoaderCircle size={23} className="voice-spinner" />
-          ) : recording ? (
-            <Square size={21} fill="currentColor" />
-          ) : (
-            <Mic size={24} />
-          )}
-        </Button>
-        {active && (
-          <Button
-            className="voice-cancel"
-            size="icon"
-            variant="ghost"
-            aria-label={handsFree.enabled ? 'Stop hands-free listening' : 'Cancel voice timer'}
-            onClick={() => { handsFree.stop(); cancel(); }}
-          >
-            <X size={17} />
-          </Button>
-        )}
-      </div>
+      {handsFree.enabled && working && (
+        <div className="voice-capsule" aria-hidden="true">
+          <LoaderCircle size={28} className="voice-spinner" />
+        </div>
+      )}
+      <span className="voice-status-text">
+        {recording
+          ? 'Listening…'
+          : handsFree.phase === 'armed'
+            ? <>Say <strong>“{handsFree.phrase}”</strong> to trigger</>
+            : handsFree.phase === 'loading'
+              ? 'Starting local listener…'
+              : phase === 'permission'
+                ? 'Allow microphone…'
+                : 'Setting your timer…'}
+      </span>
+      {handsFree.enabled && recording && (
+        <span className="voice-handsfree-detail">Pause to send · Tap mic to finish</span>
+      )}
     </div>
+  ) : null;
+
+  return (
+    <>
+      {handsFree.enabled && feedback}
+      <div
+        className={
+          'voice-dock' + (handsFree.enabled ? ' voice-dock-handsfree' : '') +
+          (!visible && !active ? ' voice-dock-hidden' : '')
+        }
+        inert={!visible && !active}
+        data-phase={handsFree.enabled ? handsFree.phase : phase}
+      >
+        {!handsFree.enabled && feedback}
+        <div className="voice-dock-actions">
+          <Button
+            className="voice-mic"
+            aria-label={label}
+            title={label}
+            aria-pressed={recording}
+            aria-busy={working}
+            disabled={phase === 'processing' || (handsFree.enabled && working)}
+            onPointerDown={(event) => {
+              if (handsFree.enabled || !holdToTalk || event.button !== 0 || working) return;
+              event.preventDefault();
+              event.currentTarget.setPointerCapture(event.pointerId);
+              void startRecording();
+            }}
+            onPointerUp={(event) => {
+              if (handsFree.enabled || !holdToTalk) return;
+              event.preventDefault();
+              stopRecording();
+            }}
+            onPointerCancel={() => {
+              if (!handsFree.enabled && holdToTalk) cancel();
+            }}
+            onKeyDown={(event) => {
+              if (!handsFree.enabled && holdToTalk && [' ', 'Enter'].includes(event.key)) {
+                event.preventDefault();
+                if (!event.repeat) void startRecording();
+              }
+            }}
+            onKeyUp={(event) => {
+              if (!handsFree.enabled && holdToTalk && [' ', 'Enter'].includes(event.key)) {
+                event.preventDefault();
+                stopRecording();
+              }
+            }}
+            onClick={() => {
+              if (handsFree.enabled) {
+                if (recording) handsFree.finish();
+                else handsFree.start();
+                return;
+              }
+              if (holdToTalk) return;
+              if (phase === 'recording' || phase === 'permission')
+                stopRecording();
+              else void startRecording();
+            }}
+          >
+            {working && !handsFree.enabled ? (
+              <LoaderCircle size={23} className="voice-spinner" />
+            ) : recording ? (
+              <Square size={21} fill="currentColor" />
+            ) : (
+              <Mic size={24} />
+            )}
+          </Button>
+          {active && (
+            <Button
+              className="voice-cancel"
+              size="icon"
+              variant="ghost"
+              aria-label={handsFree.enabled ? 'Stop hands-free listening' : 'Cancel voice timer'}
+              onClick={() => { handsFree.stop(); cancel(); }}
+            >
+              <X size={17} />
+            </Button>
+          )}
+        </div>
+      </div>
+    </>
   );
 }

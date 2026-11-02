@@ -266,6 +266,39 @@ test('tap recording auto-starts a timer, persists the key, and Undo removes it',
   expect(await page.evaluate(() => window.voiceTest.stopped)).toBe(1);
 });
 
+for (const [sound, expected] of [['on', 'chime'], ['off', 'none'], [undefined, 'chime']]) {
+  test('voice sound preference ' + sound + ' and auto-delete survive timer expiry', async ({ page }) => {
+    await setup(page);
+    await reply(page, { ...duration, durationSeconds: 5, sound });
+    const sent = page.waitForRequest(endpoint);
+    await record(page);
+    const body = (await sent).postDataJSON();
+    expect(body.generationConfig.responseSchema.properties.sound.enum).toEqual(['default', 'on', 'off']);
+    expect(body.generationConfig.responseSchema.required).toContain('sound');
+    await expect(notices(page)).toContainText('Timer started: Чай');
+    expect((await timers(page))[0]).toMatchObject({ autoDelete: true, alarmSound: expected });
+    await page.getByRole('button', { name: 'Timers', exact: true }).click();
+    await expect(page.locator('.timer-readout')).toContainText('Running');
+    await page.clock.setFixedTime(new Date('2026-11-01T12:00:06Z'));
+    await expect.poll(() => timers(page)).toHaveLength(0);
+    if (expected === 'chime') {
+      await expect(page.getByRole('alertdialog')).toBeVisible();
+      await page.keyboard.press('Space');
+      await expect(page.getByRole('alertdialog')).toBeHidden();
+    } else {
+      await expect(page.getByRole('alertdialog')).toHaveCount(0);
+    }
+  });
+}
+
+test('invalid sound preference cannot create a timer', async ({ page }) => {
+  await setup(page);
+  await reply(page, { ...duration, sound: 'loud' });
+  await record(page);
+  await expect(notices(page)).toContainText('invalid sound preference');
+  expect(await timers(page)).toHaveLength(0);
+});
+
 test('absolute time starts automatically in the local timezone', async ({
   page,
 }) => {

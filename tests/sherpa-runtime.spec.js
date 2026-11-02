@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { readFile, readdir } from 'node:fs/promises';
 
 test.use({ serviceWorkers: 'block' });
-for (const phrase of ['Computer', 'Hey Clock', 'Hey Cusemit']) {
+for (const phrase of ['Computer', 'Hey Clock', 'One Plus']) {
   test('real local sherpa WASM initializes preset: ' + phrase, async ({ page }) => {
     await page.goto('/');
     const messages = await page.evaluate(async (phrase) => {
