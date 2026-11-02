@@ -26,10 +26,7 @@ export function useHandsFree({
 }) {
   const {
     enabled,
-    accessKey,
     phrase,
-    keyword,
-    keywordLabel,
     silenceMs,
     setEnabled,
   } = useHandsFreeStore();
@@ -62,12 +59,7 @@ export function useHandsFree({
 
   React.useEffect(() => {
     setPhase('off');
-    if (!enabled || !allowed || !accessKey) return;
-    if (phrase !== 'Computer' && (!keyword || keywordLabel !== phrase)) {
-      setEnabled(false);
-      toast.error('Create or import a model for this wake phrase first.');
-      return;
-    }
+    if (!enabled || !allowed) return;
     const session = new AbortController();
     let livePhase: HandsFreePhase = 'loading';
     let recording: SilenceRecorder | null = null;
@@ -94,7 +86,7 @@ export function useHandsFree({
         fail(
           'Hands-free startup timed out. Check microphone permission and try again.'
         ),
-      30000
+      90000
     );
     const finish = async () => {
       if (session.signal.aborted || livePhase !== 'recording') return;
@@ -156,14 +148,11 @@ export function useHandsFree({
       .then(({ startWakeWord }) =>
         startWakeWord(
           {
-            accessKey,
             phrase,
-            keyword:
-              phrase !== 'Computer' && keywordLabel === phrase ? keyword : '',
             onWake: start,
             onError: () =>
               fail(
-                'The wake-word engine stopped. Check your Picovoice key, model and browser, then enable hands-free again.'
+                'The wake-word engine stopped. Check microphone permission and browser support, then enable hands-free again.'
               ),
             onFrame: (frame) => {
               if (session.signal.aborted) return;
@@ -197,7 +186,7 @@ export function useHandsFree({
       .catch(() => {
         clearTimeout(startupTimeout);
         fail(
-          'Could not start local wake-word detection. Check your Picovoice AccessKey, model, microphone permission and browser support.'
+          'Could not start local wake-word detection. Check microphone permission, network access for model files and WebAssembly support.'
         );
       });
     return () => {
@@ -212,10 +201,7 @@ export function useHandsFree({
     allowed,
     apiKey,
     enabled,
-    accessKey,
     phrase,
-    keyword,
-    keywordLabel,
     silenceMs,
     setEnabled,
   ]);

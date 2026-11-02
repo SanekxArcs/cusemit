@@ -1,16 +1,30 @@
-import { BuiltInKeyword, PorcupineWorker } from '@picovoice/porcupine-web';
-import { WebVoiceProcessor } from '@picovoice/web-voice-processor';
-
-let queue: Promise<unknown> = Promise.resolve();
-function serial<T>(operation: () => Promise<T>): Promise<T> {
-  const result = queue.then(operation, operation);
-  queue = result.catch(() => {});
-  return result;
+type ResampleState = { sum: number; weight: number };
+export function resampleFrame(
+  input: Float32Array,
+  sampleRate: number,
+  state: ResampleState = { sum: 0, weight: 0 }
+) {
+  const ratio = sampleRate / 16000;
+  const output: number[] = [];
+  for (const sample of input) {
+    let remaining = 1;
+    while (remaining > 1e-9) {
+      const weight = Math.min(remaining, ratio - state.weight);
+      state.sum += sample * weight;
+      state.weight += weight;
+      remaining -= weight;
+      if (state.weight >= ratio - 1e-9) {
+        output.push(state.sum / ratio);
+        state.sum = 0;
+        state.weight = 0;
+      }
+    }
+  }
+  return Float32Array.from(output);
 }
+
 export async function startWakeWord(
   options: {
-    accessKey: string;
-    keyword: string;
     phrase: string;
     onWake: () => void;
     onFrame: (frame: Int16Array) => void;
@@ -18,83 +32,87 @@ export async function startWakeWord(
   },
   signal: AbortSignal
 ): Promise<void> {
-  let worker: PorcupineWorker | undefined;
-  let subscribed = false;
-  const engine = {
-    onmessage: (event: MessageEvent) => {
-      if (!signal.aborted && event.data.command === 'process')
-        options.onFrame(event.data.inputFrame);
-    },
+  if (signal.aborted) return;
+  const worker = new Worker('/voice/sherpa/wake-worker.js');
+  let stream: MediaStream | undefined;
+  let context: AudioContext | undefined;
+  let source: MediaStreamAudioSourceNode | undefined;
+  let processor: ScriptProcessorNode | undefined;
+  let disposed = false;
+  let pending = 0;
+  const resampler: ResampleState = { sum: 0, weight: 0 };
+  let rejectReady: ((reason: Error) => void) | undefined;
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    worker.terminate();
+    if (processor) processor.onaudioprocess = null;
+    processor?.disconnect();
+    source?.disconnect();
+    stream?.getTracks().forEach((track) => track.stop());
+    void context?.close().catch(() => {});
+    rejectReady?.(new DOMException('Cancelled', 'AbortError'));
+    signal.removeEventListener('abort', dispose);
   };
-  const dispose = () =>
-    serial(async () => {
-      try {
-        if (subscribed) {
-          subscribed = false;
-          await WebVoiceProcessor.unsubscribe(engine);
-        }
-      } finally {
-        if (worker) {
-          const previous = worker;
-          worker = undefined;
-          try {
-            await previous.release();
-          } finally {
-            previous.terminate();
-          }
-        }
-      }
-    });
-  const onAbort = () => {
-    void dispose().catch(() => {});
+  signal.addEventListener('abort', dispose, { once: true });
+  const fail = () => {
+    if (disposed) return;
+    dispose();
+    options.onError();
   };
-  signal.addEventListener('abort', onAbort, { once: true });
   try {
-    await serial(async () => {
-      if (signal.aborted) return;
-      worker = await PorcupineWorker.create(
-        options.accessKey,
-        options.keyword
-          ? {
-              base64: options.keyword,
-              label: options.phrase,
-              sensitivity: 0.55,
-              customWritePath: 'cusemit-wake-keyword',
-              forceWrite: true,
-            }
-          : { builtin: BuiltInKeyword.Computer, sensitivity: 0.55 },
-        () => {
-          if (!signal.aborted) options.onWake();
-        },
-        {
-          publicPath: '/voice/porcupine_params.pv',
-          customWritePath: 'cusemit-porcupine-v4-en',
-          version: 1,
-        },
-        {
-          device: 'cpu:1',
-          processErrorCallback: () => {
-            if (!signal.aborted) options.onError();
-          },
-        }
-      );
-      if (signal.aborted) return;
-      WebVoiceProcessor.setOptions({
-        frameLength: worker.frameLength,
-        outputSampleRate: worker.sampleRate,
-      });
-      engine.onmessage = (event: MessageEvent) => {
-        if (signal.aborted || event.data.command !== 'process') return;
-        options.onFrame(event.data.inputFrame);
-        worker?.process(event.data.inputFrame);
+    await new Promise<void>((resolve, reject) => {
+      rejectReady = reject;
+      worker.onerror = fail;
+      worker.onmessageerror = fail;
+      worker.onmessage = (event: MessageEvent) => {
+        if (disposed) return;
+        if (event.data.type === 'ready') resolve();
+        else if (event.data.type === 'processed') pending = Math.max(0, pending - 1);
+        else if (event.data.type === 'wake') options.onWake();
+        else if (event.data.type === 'error') fail();
       };
-      subscribed = true;
-      await WebVoiceProcessor.subscribe(engine);
+      worker.postMessage({ type: 'init', phrase: options.phrase });
     });
-    if (signal.aborted) await dispose();
+    rejectReady = undefined;
+    if (disposed) return;
+    const captured = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+    });
+    if (disposed) {
+      captured.getTracks().forEach((track) => track.stop());
+      return;
+    }
+    stream = captured;
+    stream.getAudioTracks().forEach((track) =>
+      track.addEventListener('ended', fail, { once: true })
+    );
+    context = new AudioContext();
+    await context.resume();
+    if (disposed) return;
+    source = context.createMediaStreamSource(stream);
+    processor = context.createScriptProcessor(2048, 1, 1);
+    processor.onaudioprocess = (event) => {
+      if (disposed || !context) return;
+      const samples = resampleFrame(
+        event.inputBuffer.getChannelData(0), context.sampleRate, resampler
+      );
+      const pcm = Int16Array.from(samples, (sample) =>
+        Math.round(Math.max(-1, Math.min(1, sample)) * 32767)
+      );
+      options.onFrame(pcm);
+      if (disposed) return;
+      if (pending >= 12) {
+        fail();
+        return;
+      }
+      pending++;
+      worker.postMessage({ type: 'audio', samples }, [samples.buffer]);
+    };
+    source.connect(processor);
+    processor.connect(context.destination);
   } catch (error) {
-    await dispose();
-    signal.removeEventListener('abort', onAbort);
-    throw error;
+    dispose();
+    if (!signal.aborted) throw error;
   }
 }

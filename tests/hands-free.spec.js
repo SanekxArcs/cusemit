@@ -4,9 +4,8 @@ const modelEndpoint =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite';
 const endpoint =
   'https://generativelanguage.googleapis.com/**/*:generateContent';
-const trainingEndpoint = 'https://rest.picovoice.ai/en/api/ppn';
 test.use({ serviceWorkers: 'block' });
-const configKey = 'app.clock.handsfree.v1';
+const configKey = 'app.clock.handsfree.v2';
 const dock = (page) => page.locator('.voice-dock');
 const notices = (page) => page.locator('[data-sonner-toast]');
 
@@ -27,7 +26,6 @@ async function setup(page, options = {}) {
         localStorage.setItem(
           configKey,
           JSON.stringify({
-            accessKey: 'fake-picovoice-key',
             phrase: 'Computer',
             silenceMs: options.silenceMs || 1500,
             ...options.config,
@@ -338,92 +336,58 @@ test('a failed engine disables hands-free but leaves manual recording available'
   ).toBeVisible();
 });
 
-test('credentials persist but reload never silently reopens the microphone', async ({
-  page,
-}) => {
+test('phrase persists but reload never silently reopens the microphone', async ({ page }) => {
   await setup(page);
   await enable(page);
   await page.reload();
   await settings(page);
-  await expect(
-    page.getByLabel('Picovoice AccessKey', { exact: true })
-  ).toHaveValue('fake-picovoice-key');
-  await expect(
-    page.getByRole('switch', { name: 'Hands-free listening' })
-  ).not.toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Computer', exact: true })).toHaveAttribute('data-state', 'on');
+  await expect(page.getByRole('switch', { name: 'Hands-free listening' })).not.toBeChecked();
+  await expect(page.getByText('Picovoice AccessKey', { exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => window.hf.starts)).toBe(0);
 });
 
-test('custom phrases require a matching model and generation sends text only', async ({
-  page,
-}) => {
-  await setup(page);
-  await settings(page);
-  await page.getByRole('radio', { name: 'Hey Clock', exact: true }).click();
-  await page.getByRole('switch', { name: 'Hands-free listening' }).click();
-  await expect(
-    page.getByRole('switch', { name: 'Hands-free listening' })
-  ).not.toBeChecked();
-  await page.route(trainingEndpoint, async (route) => {
-    const request = route.request();
-    expect(request.postDataJSON()).toEqual({
-      platform: 'wasm',
-      phrase: 'Hey Clock',
-    });
-    expect(request.headers()['x-api-key']).toBe('fake-picovoice-key');
-    await route.fulfill({
-      contentType: 'application/octet-stream',
-      body: Buffer.from([1, 2, 3, 4]),
-    });
+for (const phrase of ['Hey Clock', 'Hey Cusemit']) {
+  test(phrase + ' starts without another key or training', async ({ page }) => {
+    await setup(page);
+    await settings(page);
+    await page.getByRole('radio', { name: phrase, exact: true }).click();
+    await page.getByRole('switch', { name: 'Hands-free listening' }).click();
+    await close(page);
+    await expect(dock(page)).toHaveAttribute('data-phase', 'armed');
+    expect(await page.evaluate(() => window.hf.options.phrase)).toBe(phrase);
+    await wake(page);
   });
-  await page
-    .getByRole('button', { name: 'Create wake-word model', exact: true })
-    .click();
-  await expect(
-    page.getByText('Wake-word model saved on this device.')
-  ).toBeVisible();
-  await page.getByRole('switch', { name: 'Hands-free listening' }).click();
-  await close(page);
-  await expect(dock(page)).toHaveAttribute('data-phase', 'armed');
-  expect(await page.evaluate(() => window.hf.options.phrase)).toBe('Hey Clock');
-  expect(await page.evaluate(() => window.hf.options.keyword)).toBe('AQIDBA==');
+}
+
+test('legacy credentials and models are removed while preserving preferences', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('app.clock.handsfree.v1', JSON.stringify({
+      accessKey: 'obsolete-key', keyword: 'obsolete-model', keywordLabel: 'Hey Clock',
+      phrase: 'Hey Clock', silenceMs: 2200,
+    }));
+  });
+  await setup(page);
+  await page.evaluate(() => localStorage.removeItem('app.clock.handsfree.v2'));
+  await page.reload();
+  const saved = await page.evaluate(() => ({
+    old: localStorage.getItem('app.clock.handsfree.v1'),
+    current: JSON.parse(localStorage.getItem('app.clock.handsfree.v2')),
+  }));
+  expect(saved.old).toBeNull();
+  expect(saved.current).toEqual({ phrase: 'Hey Clock', silenceMs: 2200 });
+  expect(await page.evaluate(() => window.hf.starts)).toBe(0);
 });
 
-test('imports a custom Web model and forgetting removes credentials and model', async ({
-  page,
-}) => {
+test('malformed legacy storage cannot retain old credentials or enable listening', async ({ page }) => {
   await setup(page);
-  await settings(page);
-  await page.getByRole('radio', { name: 'Hey Cusemit', exact: true }).click();
-  const input = page.getByLabel('Import wake-word model (.ppn)', {
-    exact: true,
+  await page.evaluate(() => {
+    localStorage.removeItem('app.clock.handsfree.v2');
+    localStorage.setItem('app.clock.handsfree.v1', '{"accessKey":"obsolete-key"');
   });
-  await input.setInputFiles({
-    name: 'wrong.wav',
-    mimeType: 'audio/wav',
-    buffer: Buffer.from('nope'),
-  });
-  await expect(page.getByRole('alert')).toContainText('.ppn');
-  await input.setInputFiles({
-    name: 'hey-cusemit.ppn',
-    mimeType: 'application/octet-stream',
-    buffer: Buffer.from('model'),
-  });
-  await expect(
-    page.getByText('Wake-word model saved on this device.')
-  ).toBeVisible();
-  await page
-    .getByRole('button', { name: 'Forget hands-free credentials' })
-    .click();
-  await expect(
-    page.getByLabel('Picovoice AccessKey', { exact: true })
-  ).toBeEmpty();
-  const saved = await page.evaluate(
-    (key) => JSON.parse(localStorage.getItem(key)),
-    configKey
-  );
-  expect(saved.accessKey).toBe('');
-  expect(saved.keyword).toBe('');
+  await page.reload();
+  expect(await page.evaluate(() => localStorage.getItem('app.clock.handsfree.v1'))).toBeNull();
+  expect(await page.evaluate(() => window.hf.starts)).toBe(0);
 });
 
 test('daily 04:00 maintenance does not reload an armed hands-free session', async ({
