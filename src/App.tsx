@@ -12,6 +12,7 @@ import { VoiceTimerButton } from '@/components/VoiceTimerPanel';
 
 import { AmoledMesh } from '@/components/AmoledMesh';
 import { useSettingsStore } from '@/store/settings';
+import { useHandsFreeStore } from '@/store/handsFree';
 import {
   DriftOffset,
   generateRandomDrift,
@@ -115,6 +116,7 @@ export function App() {
   const timerControlsRef = React.useRef(timerControls);
   timerControlsRef.current = timerControls;
   useDailyReload(4, () =>
+    voiceBusy || useHandsFreeStore.getState().enabled ||
     settings.timers.some((t) => timerControlsRef.current[t.id]?.isRunning)
   );
 

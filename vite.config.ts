@@ -50,7 +50,7 @@ export default defineConfig({
           '/clock-192.png',
           '/clock-512.png',
           ...files
-            .filter((name) => name !== 'index.html')
+            .filter((name) => name !== 'index.html' && !name.startsWith('assets/wakeWordEngine-'))
             .map((name) => '/' + name),
         ];
         const source = readFileSync(resolve(__dirname, 'public/sw.js'), 'utf8')

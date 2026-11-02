@@ -86,6 +86,13 @@ export function primeAlarmAudio(): void {
   if (ctx && ctx.state === 'suspended') void ctx.resume();
 }
 
+export function playVoiceCue(): void {
+  const context = getAudioContext();
+  if (context?.state === 'running') playNote(context, {
+    at: 0, freq: 880, duration: 0.06, type: 'sine', volume: 0.12,
+  }, context.currentTime);
+}
+
 function playNote(ctx: AudioContext, note: Note, start: number) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();

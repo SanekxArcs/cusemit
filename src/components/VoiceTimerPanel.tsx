@@ -3,6 +3,7 @@ import { LoaderCircle, Mic, Square, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useVoiceStore } from '@/store/voice';
 import { primeAlarmAudio } from '@/lib/alarm';
+import { useHandsFree } from '@/hooks/useHandsFree';
 import {
   interpretVoiceTimer,
   VoiceKeyError,
@@ -42,6 +43,19 @@ export function VoiceTimerButton({
   const supported =
     typeof MediaRecorder !== 'undefined' &&
     !!navigator.mediaDevices?.getUserMedia;
+  const updateLevel = React.useCallback((level: number) => {
+    if (reducedMotion || !bars.current) return;
+    bars.current.dataset.reactive = 'true';
+    bars.current.querySelectorAll<HTMLElement>('i').forEach((bar, index) => {
+      bar.style.transform = 'scaleY(' + (0.15 + level * (0.45 + Math.sin(index + 1) * 0.3)) + ')';
+    });
+  }, [reducedMotion]);
+  const handsFree = useHandsFree({
+    allowed: enabled && online && verified && supported && phase === 'idle',
+    apiKey,
+    onCreate: (config) => createRef.current(config),
+    onLevel: updateLevel,
+  });
 
   const releaseMicrophone = React.useCallback(() => {
     if (limit.current) clearTimeout(limit.current);
@@ -88,8 +102,8 @@ export function VoiceTimerButton({
   }, [enabled, online, verified, apiKey, holdToTalk, cancel]);
 
   React.useEffect(() => {
-    onBusyChange(phase !== 'idle');
-  }, [phase, onBusyChange]);
+    onBusyChange(phase !== 'idle' || ['loading', 'recording', 'processing'].includes(handsFree.phase));
+  }, [phase, handsFree.phase, onBusyChange]);
 
   React.useEffect(() => {
     const onHidden = () => {
@@ -262,10 +276,13 @@ export function VoiceTimerButton({
   }
 
   if (!verified || !online || !enabled || !supported) return null;
-  const active = phase !== 'idle';
-  const recording = phase === 'recording';
-  const working = phase === 'permission' || phase === 'processing';
-  const label = recording
+  const active = phase !== 'idle' || (handsFree.enabled && handsFree.phase !== 'off');
+  const recording = phase === 'recording' || handsFree.phase === 'recording';
+  const working = phase === 'permission' || phase === 'processing' || handsFree.phase === 'loading' || handsFree.phase === 'processing';
+  const label = handsFree.enabled
+    ? handsFree.phase === 'recording' ? 'Send hands-free command'
+      : working ? 'Preparing hands-free command' : 'Record hands-free command'
+    : recording
     ? 'Stop & interpret'
     : phase === 'permission'
       ? 'Cancel microphone request'
@@ -281,7 +298,7 @@ export function VoiceTimerButton({
         'voice-dock' + (!visible && !active ? ' voice-dock-hidden' : '')
       }
       inert={!visible && !active}
-      data-phase={phase}
+      data-phase={handsFree.enabled ? handsFree.phase : phase}
     >
       {active && (
         <div className="voice-feedback" role="status" aria-live="polite">
@@ -302,9 +319,13 @@ export function VoiceTimerButton({
           <span>
             {recording
               ? 'Listening…'
-              : phase === 'permission'
-                ? 'Allow microphone…'
-                : 'Setting your timer…'}
+              : handsFree.phase === 'armed'
+                ? 'Say “' + handsFree.phrase + '”'
+                : handsFree.phase === 'loading'
+                  ? 'Starting local listener…'
+                  : phase === 'permission'
+                    ? 'Allow microphone…'
+                    : 'Setting your timer…'}
           </span>
         </div>
       )}
@@ -315,34 +336,39 @@ export function VoiceTimerButton({
           title={label}
           aria-pressed={recording}
           aria-busy={working}
-          disabled={phase === 'processing'}
+          disabled={phase === 'processing' || (handsFree.enabled && working)}
           onPointerDown={(event) => {
-            if (!holdToTalk || event.button !== 0 || working) return;
+            if (handsFree.enabled || !holdToTalk || event.button !== 0 || working) return;
             event.preventDefault();
             event.currentTarget.setPointerCapture(event.pointerId);
             void startRecording();
           }}
           onPointerUp={(event) => {
-            if (!holdToTalk) return;
+            if (handsFree.enabled || !holdToTalk) return;
             event.preventDefault();
             stopRecording();
           }}
           onPointerCancel={() => {
-            if (holdToTalk) cancel();
+            if (!handsFree.enabled && holdToTalk) cancel();
           }}
           onKeyDown={(event) => {
-            if (holdToTalk && [' ', 'Enter'].includes(event.key)) {
+            if (!handsFree.enabled && holdToTalk && [' ', 'Enter'].includes(event.key)) {
               event.preventDefault();
               if (!event.repeat) void startRecording();
             }
           }}
           onKeyUp={(event) => {
-            if (holdToTalk && [' ', 'Enter'].includes(event.key)) {
+            if (!handsFree.enabled && holdToTalk && [' ', 'Enter'].includes(event.key)) {
               event.preventDefault();
               stopRecording();
             }
           }}
           onClick={() => {
+            if (handsFree.enabled) {
+              if (recording) handsFree.finish();
+              else handsFree.start();
+              return;
+            }
             if (holdToTalk) return;
             if (phase === 'recording' || phase === 'permission')
               stopRecording();
@@ -362,8 +388,8 @@ export function VoiceTimerButton({
             className="voice-cancel"
             size="icon"
             variant="ghost"
-            aria-label="Cancel voice timer"
-            onClick={cancel}
+            aria-label={handsFree.enabled ? 'Stop hands-free listening' : 'Cancel voice timer'}
+            onClick={() => { handsFree.stop(); cancel(); }}
           >
             <X size={17} />
           </Button>

@@ -1,4 +1,5 @@
 import { useVoiceStore } from '@/store/voice';
+import { HandsFreeSettings } from './HandsFreeSettings';
 import { VOICE_MODEL } from '@/lib/voiceTimer';
 import { Button, Input, Section, Toggle } from './ui/controls';
 
@@ -74,6 +75,7 @@ export function VoiceSettings() {
           </p>
         )}
       </Section>
+      <HandsFreeSettings />
       <Section title="Recording">
         <Toggle
           label="Hold to talk"
